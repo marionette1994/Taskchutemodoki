@@ -395,6 +395,10 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 // ===== ユーティリティ =====
 const dateToKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const todayKey = () => dateToKey(new Date());
+
+// 一日の開始時刻を考慮した「論理的な今日」(夜勤対応: 開始時刻前は前日扱い)
+const logicalDate = (startHour, base) => new Date((base || Date.now()) - (startHour || 0) * 3600000);
+const logicalKey = (startHour, base) => dateToKey(logicalDate(startHour, base));
 const fmtClock = d => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 const fmtDur = sec => {
   const m = Math.floor(sec / 60);
@@ -412,8 +416,8 @@ const mono = {
   fontFamily: "ui-monospace,'SF Mono',Menlo,monospace",
   fontVariantNumeric: "tabular-nums"
 };
-function periodKeys(period) {
-  const now = new Date();
+function periodKeys(period, startHour) {
+  const now = logicalDate(startHour);
   if (period === "day") return [todayKey()];
   const keys = [];
   if (period === "week") {
@@ -433,9 +437,9 @@ function periodKeys(period) {
   }
   return keys;
 }
-function lastNDaysKeys(n) {
+function lastNDaysKeys(n, startHour) {
   const keys = [];
-  const d = new Date();
+  const d = logicalDate(startHour);
   d.setDate(d.getDate() - (n - 1));
   for (let i = 0; i < n; i++) {
     keys.push(dateToKey(d));
@@ -485,7 +489,13 @@ function TaskChuteMobile() {
   const [loadError, setLoadError] = useState(false);
   const saveTimer = useRef(null);
   const loaded = useRef(false);
-  const dateKey = todayKey();
+  const prefs = data && data.prefs || {
+    hideDone: false,
+    parallel: false,
+    dayStartHour: 0
+  };
+  const dayStartHour = prefs.dayStartHour || 0;
+  const dateKey = logicalKey(dayStartHour, now);
   function normalize(d) {
     if (!d || typeof d !== "object") d = {};
     if (!Array.isArray(d.routines)) d.routines = [];
@@ -496,6 +506,7 @@ function TaskChuteMobile() {
     if (!d.prefs || typeof d.prefs !== "object") d.prefs = {};
     if (typeof d.prefs.hideDone !== "boolean") d.prefs.hideDone = false;
     if (typeof d.prefs.parallel !== "boolean") d.prefs.parallel = false;
+    if (typeof d.prefs.dayStartHour !== "number" || d.prefs.dayStartHour < 0 || d.prefs.dayStartHour > 23) d.prefs.dayStartHour = 0;
     return d;
   }
   useEffect(() => {
@@ -505,7 +516,7 @@ function TaskChuteMobile() {
         const res = await storage.get(STORAGE_KEY);
         if (res && res.value) d = JSON.parse(res.value);
       } catch (e) {/* 初回起動は正常 */}
-      d = expandRoutines(normalize(d));
+      d = expandRoutines(finalizeStale(normalize(d)));
       loaded.current = true;
       setData(d);
     })().catch(() => setLoadError(true));
@@ -530,18 +541,18 @@ function TaskChuteMobile() {
   // 日付が変わったらルーチンを再展開(アプリを開きっぱなしでも対応)
   const lastDay = useRef(dateKey);
   useEffect(() => {
-    const k = todayKey();
-    if (k !== lastDay.current && data) {
-      lastDay.current = k;
-      setData(d => expandRoutines(d));
+    if (dateKey !== lastDay.current && data) {
+      lastDay.current = dateKey;
+      setData(d => expandRoutines(finalizeStale(d)));
     }
   }, [now]);
   function expandRoutines(d) {
-    const key = todayKey();
+    const sh = d.prefs && d.prefs.dayStartHour || 0;
+    const key = logicalKey(sh);
     const day = d.days[key] || {
       tasks: []
     };
-    const dow = new Date().getDay();
+    const dow = logicalDate(sh).getDay();
     const existing = new Set(day.tasks.map(t => t.routineId).filter(Boolean));
     for (const r of d.routines) {
       const active = !r.days || r.days.length === 0 || r.days.includes(dow);
@@ -568,13 +579,39 @@ function TaskChuteMobile() {
       }
     };
   }
+
+  // 前日以前に実行中のまま残ったタスクを自動確定(日またぎで数字が壊れるのを防止)
+  function finalizeStale(d) {
+    const sh = d.prefs && d.prefs.dayStartHour || 0;
+    const key = logicalKey(sh);
+    const days = {
+      ...d.days
+    };
+    let changed = false;
+    for (const k of Object.keys(days)) {
+      if (k >= key) continue;
+      const day = days[k];
+      if (!day || !day.tasks || !day.tasks.some(t => t.running)) continue;
+      days[k] = {
+        ...day,
+        tasks: day.tasks.map(t => t.running ? {
+          ...t,
+          running: false,
+          actualSec: elapsedSec(t, Date.now()),
+          startedAt: null,
+          endClock: t.endClock || fmtClock(new Date())
+        } : t)
+      };
+      changed = true;
+    }
+    return changed ? {
+      ...d,
+      days
+    } : d;
+  }
   const tasks = data && data.days[dateKey] && data.days[dateKey].tasks || [];
   const sections = data && data.sections || DEFAULT_SECTIONS;
   const modes = data && data.modes || DEFAULT_MODES;
-  const prefs = data && data.prefs || {
-    hideDone: false,
-    parallel: false
-  };
   const modeOf = useCallback(id => modes.find(m => m.id === id) || modes[0] || DEFAULT_MODES[0], [modes]);
   const updateTasks = useCallback(fn => {
     setData(d => {
@@ -679,6 +716,74 @@ function TaskChuteMobile() {
   const progress = totalEst > 0 ? doneEst / totalEst : 0;
   const runningTasks = tasks.filter(t => t.running);
   const runningTask = runningTasks[runningTasks.length - 1];
+
+  // 先送り候補: 過去日の未完了タスク
+  const carryList = [];
+  if (data) {
+    for (const k of Object.keys(data.days)) {
+      if (k >= dateKey) continue;
+      for (const t of data.days[k] && data.days[k].tasks || []) {
+        if (!t.done && !t.dismissed) carryList.push({
+          day: k,
+          id: t.id
+        });
+      }
+    }
+  }
+  const carryOver = () => setData(d => {
+    const days = {
+      ...d.days
+    };
+    const today = {
+      ...(days[dateKey] || {
+        tasks: []
+      })
+    };
+    today.tasks = [...today.tasks];
+    for (const k of Object.keys(days)) {
+      if (k >= dateKey) continue;
+      const day = days[k];
+      if (!day || !day.tasks) continue;
+      const move = day.tasks.filter(t => !t.done && !t.dismissed);
+      if (move.length === 0) continue;
+      days[k] = {
+        ...day,
+        tasks: day.tasks.filter(t => t.done || t.dismissed)
+      };
+      for (const t of move) today.tasks.push({
+        ...t,
+        running: false,
+        startedAt: null,
+        carried: (t.carried || 0) + 1
+      });
+    }
+    days[dateKey] = today;
+    return {
+      ...d,
+      days
+    };
+  });
+  const dismissCarry = () => setData(d => {
+    const days = {
+      ...d.days
+    };
+    for (const k of Object.keys(days)) {
+      if (k >= dateKey) continue;
+      const day = days[k];
+      if (!day || !day.tasks || !day.tasks.some(t => !t.done && !t.dismissed)) continue;
+      days[k] = {
+        ...day,
+        tasks: day.tasks.map(t => !t.done && !t.dismissed ? {
+          ...t,
+          dismissed: true
+        } : t)
+      };
+    }
+    return {
+      ...d,
+      days
+    };
+  });
   const S = {
     app: {
       fontFamily: "'Hiragino Sans','Noto Sans JP',system-ui,sans-serif",
@@ -732,7 +837,7 @@ function TaskChuteMobile() {
       letterSpacing: 2,
       color: "#8FA3B8"
     }
-  }, new Date(now).getMonth() + 1, "/", new Date(now).getDate(), "(", WEEKDAYS[new Date(now).getDay()], ") ", fmtClock(new Date(now))), /*#__PURE__*/React.createElement("div", {
+  }, logicalDate(dayStartHour, now).getMonth() + 1, "/", logicalDate(dayStartHour, now).getDate(), "(", WEEKDAYS[logicalDate(dayStartHour, now).getDay()], ") ", fmtClock(new Date(now)), dayStartHour > 0 ? `(${dayStartHour}時区切り)` : ""), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "baseline",
@@ -803,7 +908,51 @@ function TaskChuteMobile() {
       overflowY: "auto",
       paddingBottom: 100
     }
-  }, view === "today" && /*#__PURE__*/React.createElement(TodayView, {
+  }, view === "today" && carryList.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      margin: "12px 12px 0",
+      background: "#FFF7ED",
+      border: "1px solid #FDBA74",
+      borderRadius: 12,
+      padding: "12px 14px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: "#9A3412",
+      marginBottom: 8
+    }
+  }, "前日までの未完了タスクが", carryList.length, "件あります"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: carryOver,
+    style: {
+      flex: 1,
+      padding: 10,
+      borderRadius: 8,
+      border: "none",
+      background: "#EA580C",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "今日に持ち越す"), /*#__PURE__*/React.createElement("button", {
+    onClick: dismissCarry,
+    style: {
+      flex: 1,
+      padding: 10,
+      borderRadius: 8,
+      border: "1px solid #FDBA74",
+      background: "#fff",
+      color: "#9A3412",
+      fontSize: 13,
+      cursor: "pointer"
+    }
+  }, "持ち越さない"))), view === "today" && /*#__PURE__*/React.createElement(TodayView, {
     tasks: tasks,
     now: now,
     sections: sections,
@@ -967,7 +1116,7 @@ function TaskChuteMobile() {
   }), backupModal === "import" && /*#__PURE__*/React.createElement(ImportModal, {
     onClose: () => setBackupModal(null),
     onImport: d => {
-      setData(expandRoutines(normalize(d)));
+      setData(expandRoutines(finalizeStale(normalize(d))));
       setBackupModal(null);
     }
   }));
@@ -1129,7 +1278,7 @@ function TodayView({
           color: over ? "#DC2626" : "#8595A6",
           marginTop: 2
         }
-      }, "見積 ", fmtMin(t.estimate || 0), el > 0 && ` ・ 実績 ${fmtDur(el)}`, t.startClock && ` ・ ${t.startClock}${t.endClock ? "→" + t.endClock : "〜"}`)), !t.done && /*#__PURE__*/React.createElement("div", {
+      }, "見積 ", fmtMin(t.estimate || 0), el > 0 && ` ・ 実績 ${fmtDur(el)}`, t.startClock && ` ・ ${t.startClock}${t.endClock ? "→" + t.endClock : "〜"}`, t.carried ? ` ・ 🔁持越${t.carried}回` : "")), !t.done && /*#__PURE__*/React.createElement("div", {
         style: {
           display: "flex",
           flexDirection: "column",
@@ -1468,6 +1617,7 @@ function AnalysisView({
 }) {
   const [range, setRange] = useState(7);
   const [goalModal, setGoalModal] = useState(null);
+  const sh = data.prefs && data.prefs.dayStartHour || 0;
   const card = {
     background: "#fff",
     borderRadius: 12,
@@ -1489,7 +1639,7 @@ function AnalysisView({
     return out;
   }, [data.days]);
   const goalProgress = useCallback(g => {
-    const keys = periodKeys(g.period);
+    const keys = periodKeys(g.period, sh);
     const ts = collectTasks(keys);
     const sec = ts.reduce((a, t) => {
       if (g.mode && t.mode !== g.mode) return a;
@@ -1497,9 +1647,9 @@ function AnalysisView({
       return a + elapsedSec(t, now);
     }, 0);
     return sec / 60;
-  }, [collectTasks, now]);
+  }, [collectTasks, now, sh]);
   const dailyData = useMemo(() => {
-    return lastNDaysKeys(range).map(k => {
+    return lastNDaysKeys(range, sh).map(k => {
       const ts = data.days[k] && data.days[k].tasks || [];
       return {
         day: k.slice(5).replace("-", "/"),
@@ -1507,9 +1657,9 @@ function AnalysisView({
         est: ts.reduce((a, t) => a + (t.estimate || 0), 0)
       };
     });
-  }, [data.days, range]);
+  }, [data.days, range, sh]);
   const modeDist = useMemo(() => {
-    const ts = collectTasks(lastNDaysKeys(range));
+    const ts = collectTasks(lastNDaysKeys(range, sh));
     const map = {};
     let total = 0;
     for (const t of ts) {
@@ -1524,9 +1674,9 @@ function AnalysisView({
         sec
       })).sort((a, b) => b.sec - a.sec)
     };
-  }, [collectTasks, range, modeOf]);
+  }, [collectTasks, range, modeOf, sh]);
   const accuracy = useMemo(() => {
-    const ts = collectTasks(lastNDaysKeys(range)).filter(t => t.done && t.estimate > 0 && t.actualSec > 0);
+    const ts = collectTasks(lastNDaysKeys(range, sh)).filter(t => t.done && t.estimate > 0 && t.actualSec > 0);
     if (ts.length === 0) return null;
     const ratios = ts.map(t => t.actualSec / 60 / t.estimate);
     const avg = ratios.reduce((a, r) => a + r, 0) / ratios.length;
@@ -1536,7 +1686,7 @@ function AnalysisView({
       count: ts.length,
       over
     };
-  }, [collectTasks, range]);
+  }, [collectTasks, range, sh]);
   const periodLabel = {
     day: "今日",
     week: "今週",
@@ -2257,7 +2407,49 @@ function SettingsView({
       margin: "8px 2px 0",
       lineHeight: 1.7
     }
-  }, "オフ(シングルモード)はTaskChute方式: 別のタスクを開始すると実行中のタスクが自動停止します。オンにすると複数のタスクを並行して計測できます。"))), /*#__PURE__*/React.createElement("section", {
+  }, "オフ(シングルモード)はTaskChute方式: 別のタスクを開始すると実行中のタスクが自動停止します。オンにすると複数のタスクを並行して計測できます。"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: "1px solid #EDF0F4",
+      marginTop: 12,
+      paddingTop: 12
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+      fontSize: 14
+    }
+  }, "一日の開始時刻", /*#__PURE__*/React.createElement("select", {
+    value: data.prefs && data.prefs.dayStartHour || 0,
+    onChange: e => setData(d => ({
+      ...d,
+      prefs: {
+        ...(d.prefs || {}),
+        dayStartHour: Number(e.target.value)
+      }
+    })),
+    style: {
+      padding: "8px 12px",
+      borderRadius: 8,
+      border: "1px solid #E1E6EC",
+      fontSize: 14,
+      background: "#fff"
+    }
+  }, Array.from({
+    length: 24
+  }, (_, h) => /*#__PURE__*/React.createElement("option", {
+    key: h,
+    value: h
+  }, h, ":00")))), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      margin: "8px 2px 0",
+      lineHeight: 1.7
+    }
+  }, "夜勤対応: 例えば12:00に設定すると、深夜0時を過ぎても正午までは「同じ日」の続きとして扱われます(22時〜翌6時の勤務が1日にまとまります)。ルーチンの曜日・分析・ログもこの区切りで集計されます。")))), /*#__PURE__*/React.createElement("section", {
     style: {
       marginBottom: 24
     }
@@ -3206,4 +3398,3 @@ const chip = active => ({
 ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(TaskChuteMobile, null));</script>
 </body>
 </html>
-
