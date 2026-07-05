@@ -318,285 +318,173 @@ var d=null!=c&&c.hydratedSources||null,e=!1,f="",g=aj;null!==c&&void 0!==c&&(!0=
 function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmountComponentAtNode=function(a){if(!Vd(a))throw Error(m(40));return a._reactRootContainer?(yb(function(){Wd(null,null,a,!1,function(){a._reactRootContainer=null;a[Ja]=null})}),!0):!1};Q.unstable_batchedUpdates=Tf;Q.unstable_renderSubtreeIntoContainer=function(a,b,c,d){if(!Vd(c))throw Error(m(200));if(null==a||void 0===a._reactInternals)throw Error(m(38));return Wd(a,b,c,!1,d)};Q.version="18.3.1-next-f1338f8080-20240426"});
 })();
 </script>
-<script>"use strict";
-
-var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; })();
-
-var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
-
-function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) arr2[i] = arr[i]; return arr2; } else { return Array.from(arr); } }
-
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
-var _React = React;
-var useState = _React.useState;
-var useEffect = _React.useEffect;
-var useRef = _React.useRef;
-var useCallback = _React.useCallback;
-var useMemo = _React.useMemo;
+<script>const {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo
+} = React;
 
 // ===== ストレージ(localStorage) =====
-var storage = {
-  get: function get(key) {
-    var v;
-    return regeneratorRuntime.async(function get$(context$1$0) {
-      while (1) switch (context$1$0.prev = context$1$0.next) {
-        case 0:
-          v = localStorage.getItem(key);
-
-          if (!(v === null)) {
-            context$1$0.next = 3;
-            break;
-          }
-
-          throw new Error("not found");
-
-        case 3:
-          return context$1$0.abrupt("return", { key: key, value: v });
-
-        case 4:
-        case "end":
-          return context$1$0.stop();
-      }
-    }, null, this);
+const storage = {
+  async get(key) {
+    const v = localStorage.getItem(key);
+    if (v === null) throw new Error("not found");
+    return {
+      key,
+      value: v
+    };
   },
-  set: function set(key, value) {
-    return regeneratorRuntime.async(function set$(context$1$0) {
-      while (1) switch (context$1$0.prev = context$1$0.next) {
-        case 0:
-          localStorage.setItem(key, value);
-          return context$1$0.abrupt("return", { key: key, value: value });
-
-        case 2:
-        case "end":
-          return context$1$0.stop();
-      }
-    }, null, this);
+  async set(key, value) {
+    localStorage.setItem(key, value);
+    return {
+      key,
+      value
+    };
   }
 };
 
 // ===== 定数 =====
-var STORAGE_KEY = "tcm-data-v1";
-
-var DEFAULT_MODES = [{ id: "work", label: "仕事", color: "#2563EB" }, { id: "routine", label: "ルーチン", color: "#0D9488" }, { id: "health", label: "健康", color: "#16A34A" }, { id: "study", label: "学習", color: "#7C3AED" }, { id: "life", label: "生活", color: "#D97706" }];
-
-var DEFAULT_SECTIONS = [{ id: "morning", label: "朝", range: "6:00–9:00" }, { id: "am", label: "午前", range: "9:00–12:00" }, { id: "pm", label: "午後", range: "12:00–15:00" }, { id: "evening", label: "夕方", range: "15:00–18:00" }, { id: "night", label: "夜", range: "18:00–24:00" }];
-
-var COLOR_PALETTE = ["#2563EB", "#0D9488", "#16A34A", "#7C3AED", "#D97706", "#DC2626", "#DB2777", "#0891B2", "#65A30D", "#57534E"];
-
-var WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const STORAGE_KEY = "tcm-data-v1";
+const DEFAULT_MODES = [{
+  id: "work",
+  label: "仕事",
+  color: "#2563EB"
+}, {
+  id: "routine",
+  label: "ルーチン",
+  color: "#0D9488"
+}, {
+  id: "health",
+  label: "健康",
+  color: "#16A34A"
+}, {
+  id: "study",
+  label: "学習",
+  color: "#7C3AED"
+}, {
+  id: "life",
+  label: "生活",
+  color: "#D97706"
+}];
+const DEFAULT_SECTIONS = [{
+  id: "morning",
+  label: "朝",
+  range: "6:00–9:00"
+}, {
+  id: "am",
+  label: "午前",
+  range: "9:00–12:00"
+}, {
+  id: "pm",
+  label: "午後",
+  range: "12:00–15:00"
+}, {
+  id: "evening",
+  label: "夕方",
+  range: "15:00–18:00"
+}, {
+  id: "night",
+  label: "夜",
+  range: "18:00–24:00"
+}];
+const COLOR_PALETTE = ["#2563EB", "#0D9488", "#16A34A", "#7C3AED", "#D97706", "#DC2626", "#DB2777", "#0891B2", "#65A30D", "#57534E"];
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 // ===== ユーティリティ =====
-var dateToKey = function dateToKey(d) {
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const dateToKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const todayKey = () => dateToKey(new Date());
+const fmtClock = d => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+const fmtDur = sec => {
+  const m = Math.floor(sec / 60);
+  const h = Math.floor(m / 60);
+  return h > 0 ? `${h}:${String(m % 60).padStart(2, "0")}` : `${m}分`;
 };
-
-var todayKey = function todayKey() {
-  return dateToKey(new Date());
-};
-
-var fmtClock = function fmtClock(d) {
-  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
-};
-
-var fmtDur = function fmtDur(sec) {
-  var m = Math.floor(sec / 60);
-  var h = Math.floor(m / 60);
-  return h > 0 ? h + ":" + String(m % 60).padStart(2, "0") : m + "分";
-};
-
-var fmtMin = function fmtMin(min) {
+const fmtMin = min => {
   min = Math.round(min);
-  var h = Math.floor(min / 60);
-  return h > 0 ? h + "時間" + (min % 60 ? min % 60 + "分" : "") : min + "分";
+  const h = Math.floor(min / 60);
+  return h > 0 ? `${h}時間${min % 60 ? min % 60 + "分" : ""}` : `${min}分`;
 };
-
-var uid = function uid() {
-  return Math.random().toString(36).slice(2, 10);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const elapsedSec = (t, now) => (t.actualSec || 0) + (t.running && t.startedAt ? Math.max(0, Math.floor((now - t.startedAt) / 1000)) : 0);
+const mono = {
+  fontFamily: "ui-monospace,'SF Mono',Menlo,monospace",
+  fontVariantNumeric: "tabular-nums"
 };
-
-var elapsedSec = function elapsedSec(t, now) {
-  return (t.actualSec || 0) + (t.running && t.startedAt ? Math.max(0, Math.floor((now - t.startedAt) / 1000)) : 0);
-};
-
-var mono = { fontFamily: "ui-monospace,'SF Mono',Menlo,monospace", fontVariantNumeric: "tabular-nums" };
-
 function periodKeys(period) {
-  var now = new Date();
+  const now = new Date();
   if (period === "day") return [todayKey()];
-  var keys = [];
+  const keys = [];
   if (period === "week") {
-    var d = new Date(now);
-    var diff = (d.getDay() + 6) % 7; // 月曜=0
+    const d = new Date(now);
+    const diff = (d.getDay() + 6) % 7; // 月曜=0
     d.setDate(d.getDate() - diff);
-    for (var i = 0; i < 7; i++) {
-      keys.push(dateToKey(d));d.setDate(d.getDate() + 1);
+    for (let i = 0; i < 7; i++) {
+      keys.push(dateToKey(d));
+      d.setDate(d.getDate() + 1);
     }
   } else if (period === "month") {
-    var d = new Date(now.getFullYear(), now.getMonth(), 1);
+    const d = new Date(now.getFullYear(), now.getMonth(), 1);
     while (d.getMonth() === now.getMonth()) {
-      keys.push(dateToKey(d));d.setDate(d.getDate() + 1);
+      keys.push(dateToKey(d));
+      d.setDate(d.getDate() + 1);
     }
   }
   return keys;
 }
-
 function lastNDaysKeys(n) {
-  var keys = [];
-  var d = new Date();
+  const keys = [];
+  const d = new Date();
   d.setDate(d.getDate() - (n - 1));
-  for (var i = 0; i < n; i++) {
-    keys.push(dateToKey(d));d.setDate(d.getDate() + 1);
+  for (let i = 0; i < n; i++) {
+    keys.push(dateToKey(d));
+    d.setDate(d.getDate() + 1);
   }
   return keys;
 }
 
 // ===== Markdown生成(Obsidian/Dataview対応) =====
 function buildMarkdown(dateKey, tasks, sections, modes) {
-  var done = tasks.filter(function (t) {
-    return t.done;
-  });
-  var estMin = tasks.reduce(function (a, t) {
-    return a + (t.estimate || 0);
-  }, 0);
-  var actMin = Math.round(tasks.reduce(function (a, t) {
-    return a + (t.actualSec || 0);
-  }, 0) / 60);
-  var modeOf = function modeOf(id) {
-    return modes.find(function (m) {
-      return m.id === id;
-    });
-  };
-
-  var md = "---\ndate: " + dateKey + "\ntype: taskchute-log\ntasks_total: " + tasks.length + "\ntasks_done: " + done.length + "\nestimate_min: " + estMin + "\nactual_min: " + actMin + "\n---\n\n# " + dateKey + " タスクログ\n";
-
+  const done = tasks.filter(t => t.done);
+  const estMin = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
+  const actMin = Math.round(tasks.reduce((a, t) => a + (t.actualSec || 0), 0) / 60);
+  const modeOf = id => modes.find(m => m.id === id);
+  let md = `---\ndate: ${dateKey}\ntype: taskchute-log\ntasks_total: ${tasks.length}\ntasks_done: ${done.length}\nestimate_min: ${estMin}\nactual_min: ${actMin}\n---\n\n# ${dateKey} タスクログ\n`;
   if (tasks.length === 0) {
     md += "\nこの日のタスク記録はありません。\n";
     return md;
   }
-
-  var known = new Set(sections.map(function (s) {
-    return s.id;
-  }));
-
-  var _loop = function (i) {
-    var sec = sections[i];
-    var list = tasks.filter(function (t) {
-      return t.section === sec.id || i === 0 && !known.has(t.section);
-    });
-    if (list.length === 0) return "continue";
-    md += "\n## " + sec.label + "(" + sec.range + ")\n\n";
-    _iteratorNormalCompletion = true;
-    _didIteratorError = false;
-    _iteratorError = undefined;
-
-    try {
-      for (_iterator = list[Symbol.iterator](); !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-        var t = _step.value;
-
-        var mode = modeOf(t.mode);
-        var time = t.startClock ? " " + t.startClock + "→" + (t.endClock || "") : "";
-        var act = t.actualSec ? "/実績" + Math.round(t.actualSec / 60) + "分" : "";
-        md += "- [" + (t.done ? "x" : " ") + "] " + t.name + (mode ? " #" + mode.label : "") + time + " (見積" + (t.estimate || 0) + "分" + act + ")\n";
-        if (t.comment) md += "    - 💬 " + t.comment + "\n";
-      }
-    } catch (err) {
-      _didIteratorError = true;
-      _iteratorError = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion && _iterator["return"]) {
-          _iterator["return"]();
-        }
-      } finally {
-        if (_didIteratorError) {
-          throw _iteratorError;
-        }
-      }
+  const known = new Set(sections.map(s => s.id));
+  for (let i = 0; i < sections.length; i++) {
+    const sec = sections[i];
+    const list = tasks.filter(t => t.section === sec.id || i === 0 && !known.has(t.section));
+    if (list.length === 0) continue;
+    md += `\n## ${sec.label}(${sec.range})\n\n`;
+    for (const t of list) {
+      const mode = modeOf(t.mode);
+      const time = t.startClock ? ` ${t.startClock}→${t.endClock || ""}` : "";
+      const act = t.actualSec ? `/実績${Math.round(t.actualSec / 60)}分` : "";
+      md += `- [${t.done ? "x" : " "}] ${t.name}${mode ? ` #${mode.label}` : ""}${time} (見積${t.estimate || 0}分${act})\n`;
+      if (t.comment) md += `    - 💬 ${t.comment}\n`;
     }
-  };
-
-  for (var i = 0; i < sections.length; i++) {
-    var _iteratorNormalCompletion;
-
-    var _didIteratorError;
-
-    var _iteratorError;
-
-    var _iterator, _step;
-
-    var _ret = _loop(i);
-
-    if (_ret === "continue") continue;
   }
   return md;
 }
 
 // ===== 本体 =====
 function TaskChuteMobile() {
-  var _this = this;
-
-  var _useState = useState(null);
-
-  var _useState2 = _slicedToArray(_useState, 2);
-
-  var data = _useState2[0];
-  var setData = _useState2[1];
-
-  var _useState3 = useState("today");
-
-  var _useState32 = _slicedToArray(_useState3, 2);
-
-  var view = _useState32[0];
-  var setView = _useState32[1];
-
-  var _useState4 = useState(Date.now());
-
-  var _useState42 = _slicedToArray(_useState4, 2);
-
-  var now = _useState42[0];
-  var setNow = _useState42[1];
-
-  var _useState5 = useState(false);
-
-  var _useState52 = _slicedToArray(_useState5, 2);
-
-  var showAdd = _useState52[0];
-  var setShowAdd = _useState52[1];
-
-  var _useState6 = useState(null);
-
-  var _useState62 = _slicedToArray(_useState6, 2);
-
-  var editTask = _useState62[0];
-  var setEditTask = _useState62[1];
-
-  var _useState7 = useState(null);
-
-  var _useState72 = _slicedToArray(_useState7, 2);
-
-  var exportMd = _useState72[0];
-  var setExportMd = _useState72[1];
-
-  var _useState8 = useState(null);
-
-  var _useState82 = _slicedToArray(_useState8, 2);
-
-  var backupModal = _useState82[0];
-  var setBackupModal = _useState82[1];
-
-  var _useState9 = useState(false);
-
-  var _useState92 = _slicedToArray(_useState9, 2);
-
-  var loadError = _useState92[0];
-  var setLoadError = _useState92[1];
-
-  var saveTimer = useRef(null);
-  var loaded = useRef(false);
-
-  var dateKey = todayKey();
-
+  const [data, setData] = useState(null);
+  const [view, setView] = useState("today");
+  const [now, setNow] = useState(Date.now());
+  const [showAdd, setShowAdd] = useState(false);
+  const [editTask, setEditTask] = useState(null);
+  const [exportMd, setExportMd] = useState(null);
+  const [backupModal, setBackupModal] = useState(null);
+  const [loadError, setLoadError] = useState(false);
+  const saveTimer = useRef(null);
+  const loaded = useRef(false);
+  const dateKey = todayKey();
   function normalize(d) {
     if (!d || typeof d !== "object") d = {};
     if (!Array.isArray(d.routines)) d.routines = [];
@@ -606,1735 +494,1825 @@ function TaskChuteMobile() {
     if (!Array.isArray(d.goals)) d.goals = [];
     return d;
   }
-
-  useEffect(function () {
-    (function callee$2$0() {
-      var d, res;
-      return regeneratorRuntime.async(function callee$2$0$(context$3$0) {
-        while (1) switch (context$3$0.prev = context$3$0.next) {
-          case 0:
-            d = {};
-            context$3$0.prev = 1;
-            context$3$0.next = 4;
-            return regeneratorRuntime.awrap(storage.get(STORAGE_KEY));
-
-          case 4:
-            res = context$3$0.sent;
-
-            if (res && res.value) d = JSON.parse(res.value);
-            context$3$0.next = 10;
-            break;
-
-          case 8:
-            context$3$0.prev = 8;
-            context$3$0.t0 = context$3$0["catch"](1);
-
-          case 10:
-            /* 初回起動は正常 */
-            d = expandRoutines(normalize(d));
-            loaded.current = true;
-            setData(d);
-
-          case 13:
-          case "end":
-            return context$3$0.stop();
-        }
-      }, null, _this, [[1, 8]]);
-    })()["catch"](function () {
-      return setLoadError(true);
-    });
+  useEffect(() => {
+    (async () => {
+      let d = {};
+      try {
+        const res = await storage.get(STORAGE_KEY);
+        if (res && res.value) d = JSON.parse(res.value);
+      } catch (e) {/* 初回起動は正常 */}
+      d = expandRoutines(normalize(d));
+      loaded.current = true;
+      setData(d);
+    })().catch(() => setLoadError(true));
   }, []);
-
-  useEffect(function () {
+  useEffect(() => {
     if (!data || !loaded.current) return;
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(function callee$2$0() {
-      return regeneratorRuntime.async(function callee$2$0$(context$3$0) {
-        while (1) switch (context$3$0.prev = context$3$0.next) {
-          case 0:
-            context$3$0.prev = 0;
-            context$3$0.next = 3;
-            return regeneratorRuntime.awrap(storage.set(STORAGE_KEY, JSON.stringify(data)));
-
-          case 3:
-            context$3$0.next = 8;
-            break;
-
-          case 5:
-            context$3$0.prev = 5;
-            context$3$0.t0 = context$3$0["catch"](0);
-            console.error("保存に失敗しました", context$3$0.t0);
-          case 8:
-          case "end":
-            return context$3$0.stop();
-        }
-      }, null, _this, [[0, 5]]);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        await storage.set(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.error("保存に失敗しました", e);
+      }
     }, 600);
-    return function () {
-      return clearTimeout(saveTimer.current);
-    };
+    return () => clearTimeout(saveTimer.current);
   }, [data]);
-
-  useEffect(function () {
-    var id = setInterval(function () {
-      return setNow(Date.now());
-    }, 1000);
-    return function () {
-      return clearInterval(id);
-    };
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
   }, []);
 
   // 日付が変わったらルーチンを再展開(アプリを開きっぱなしでも対応)
-  var lastDay = useRef(dateKey);
-  useEffect(function () {
-    var k = todayKey();
+  const lastDay = useRef(dateKey);
+  useEffect(() => {
+    const k = todayKey();
     if (k !== lastDay.current && data) {
       lastDay.current = k;
-      setData(function (d) {
-        return expandRoutines(d);
-      });
+      setData(d => expandRoutines(d));
     }
   }, [now]);
-
   function expandRoutines(d) {
-    var key = todayKey();
-    var day = d.days[key] || { tasks: [] };
-    var dow = new Date().getDay();
-    var existing = new Set(day.tasks.map(function (t) {
-      return t.routineId;
-    }).filter(Boolean));
-    var _iteratorNormalCompletion2 = true;
-    var _didIteratorError2 = false;
-    var _iteratorError2 = undefined;
-
-    try {
-      for (var _iterator2 = d.routines[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-        var r = _step2.value;
-
-        var active = !r.days || r.days.length === 0 || r.days.includes(dow);
-        if (active && !existing.has(r.id)) {
-          day.tasks.push({
-            id: uid(), routineId: r.id, name: r.name, estimate: r.estimate,
-            section: r.section, mode: r.mode, actualSec: 0, running: false,
-            done: false, comment: ""
-          });
-        }
-      }
-    } catch (err) {
-      _didIteratorError2 = true;
-      _iteratorError2 = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion2 && _iterator2["return"]) {
-          _iterator2["return"]();
-        }
-      } finally {
-        if (_didIteratorError2) {
-          throw _iteratorError2;
-        }
+    const key = todayKey();
+    const day = d.days[key] || {
+      tasks: []
+    };
+    const dow = new Date().getDay();
+    const existing = new Set(day.tasks.map(t => t.routineId).filter(Boolean));
+    for (const r of d.routines) {
+      const active = !r.days || r.days.length === 0 || r.days.includes(dow);
+      if (active && !existing.has(r.id)) {
+        day.tasks.push({
+          id: uid(),
+          routineId: r.id,
+          name: r.name,
+          estimate: r.estimate,
+          section: r.section,
+          mode: r.mode,
+          actualSec: 0,
+          running: false,
+          done: false,
+          comment: ""
+        });
       }
     }
-
-    return _extends({}, d, { days: _extends({}, d.days, _defineProperty({}, key, day)) });
+    return {
+      ...d,
+      days: {
+        ...d.days,
+        [key]: day
+      }
+    };
   }
-
-  var tasks = data && data.days[dateKey] && data.days[dateKey].tasks || [];
-  var sections = data && data.sections || DEFAULT_SECTIONS;
-  var modes = data && data.modes || DEFAULT_MODES;
-  var modeOf = useCallback(function (id) {
-    return modes.find(function (m) {
-      return m.id === id;
-    }) || modes[0] || DEFAULT_MODES[0];
-  }, [modes]);
-
-  var updateTasks = useCallback(function (fn) {
-    setData(function (d) {
-      var day = d.days[dateKey] || { tasks: [] };
-      return _extends({}, d, { days: _extends({}, d.days, _defineProperty({}, dateKey, _extends({}, day, { tasks: fn(day.tasks) }))) });
+  const tasks = data && data.days[dateKey] && data.days[dateKey].tasks || [];
+  const sections = data && data.sections || DEFAULT_SECTIONS;
+  const modes = data && data.modes || DEFAULT_MODES;
+  const modeOf = useCallback(id => modes.find(m => m.id === id) || modes[0] || DEFAULT_MODES[0], [modes]);
+  const updateTasks = useCallback(fn => {
+    setData(d => {
+      const day = d.days[dateKey] || {
+        tasks: []
+      };
+      return {
+        ...d,
+        days: {
+          ...d.days,
+          [dateKey]: {
+            ...day,
+            tasks: fn(day.tasks)
+          }
+        }
+      };
     });
   }, [dateKey]);
-
-  var startTask = function startTask(id) {
-    return updateTasks(function (ts) {
-      return ts.map(function (t) {
-        if (t.id === id) return _extends({}, t, { running: true, startedAt: Date.now(), startClock: t.startClock || fmtClock(new Date()) });
-        if (t.running) return _extends({}, t, { running: false, actualSec: elapsedSec(t, Date.now()), startedAt: null });
-        return t;
-      });
-    });
+  const startTask = id => updateTasks(ts => ts.map(t => {
+    if (t.id === id) return {
+      ...t,
+      running: true,
+      startedAt: Date.now(),
+      startClock: t.startClock || fmtClock(new Date())
+    };
+    if (t.running) return {
+      ...t,
+      running: false,
+      actualSec: elapsedSec(t, Date.now()),
+      startedAt: null
+    };
+    return t;
+  }));
+  const stopTask = (id, markDone) => updateTasks(ts => ts.map(t => t.id === id ? {
+    ...t,
+    running: false,
+    actualSec: elapsedSec(t, Date.now()),
+    startedAt: null,
+    done: markDone ? true : t.done,
+    endClock: markDone ? fmtClock(new Date()) : t.endClock
+  } : t));
+  const toggleDone = t => {
+    if (t.running) stopTask(t.id, true);else updateTasks(ts => ts.map(x => x.id === t.id ? {
+      ...x,
+      done: !x.done,
+      endClock: !x.done ? fmtClock(new Date()) : x.endClock
+    } : x));
   };
-
-  var stopTask = function stopTask(id, markDone) {
-    return updateTasks(function (ts) {
-      return ts.map(function (t) {
-        return t.id === id ? _extends({}, t, { running: false, actualSec: elapsedSec(t, Date.now()), startedAt: null,
-          done: markDone ? true : t.done, endClock: markDone ? fmtClock(new Date()) : t.endClock }) : t;
-      });
-    });
-  };
-
-  var toggleDone = function toggleDone(t) {
-    if (t.running) stopTask(t.id, true);else updateTasks(function (ts) {
-      return ts.map(function (x) {
-        return x.id === t.id ? _extends({}, x, { done: !x.done, endClock: !x.done ? fmtClock(new Date()) : x.endClock }) : x;
-      });
-    });
-  };
-
-  var deleteTask = function deleteTask(id) {
-    return updateTasks(function (ts) {
-      return ts.filter(function (t) {
-        return t.id !== id;
-      });
-    });
-  };
-
-  var moveTask = function moveTask(id, dir) {
-    return updateTasks(function (ts) {
-      var idx = ts.findIndex(function (t) {
-        return t.id === id;
-      });
-      var sameSection = ts.filter(function (t) {
-        return t.section === ts[idx].section;
-      });
-      var pos = sameSection.findIndex(function (t) {
-        return t.id === id;
-      });
-      var swapWith = sameSection[pos + dir];
-      if (!swapWith) return ts;
-      var arr = [].concat(_toConsumableArray(ts));
-      var j = arr.findIndex(function (t) {
-        return t.id === swapWith.id;
-      });
-      var _ref = [arr[j], arr[idx]];
-      arr[idx] = _ref[0];
-      arr[j] = _ref[1];
-
-      return arr;
-    });
-  };
-
-  var remainingSec = tasks.reduce(function (acc, t) {
+  const deleteTask = id => updateTasks(ts => ts.filter(t => t.id !== id));
+  const moveTask = (id, dir) => updateTasks(ts => {
+    const idx = ts.findIndex(t => t.id === id);
+    const sameSection = ts.filter(t => t.section === ts[idx].section);
+    const pos = sameSection.findIndex(t => t.id === id);
+    const swapWith = sameSection[pos + dir];
+    if (!swapWith) return ts;
+    const arr = [...ts];
+    const j = arr.findIndex(t => t.id === swapWith.id);
+    [arr[idx], arr[j]] = [arr[j], arr[idx]];
+    return arr;
+  });
+  const remainingSec = tasks.reduce((acc, t) => {
     if (t.done) return acc;
-    var est = (t.estimate || 0) * 60;
+    const est = (t.estimate || 0) * 60;
     return acc + Math.max(0, est - elapsedSec(t, now));
   }, 0);
-  var endTime = new Date(now + remainingSec * 1000);
-  var totalEst = tasks.reduce(function (a, t) {
-    return a + (t.estimate || 0);
-  }, 0);
-  var doneEst = tasks.filter(function (t) {
-    return t.done;
-  }).reduce(function (a, t) {
-    return a + (t.estimate || 0);
-  }, 0);
-  var progress = totalEst > 0 ? doneEst / totalEst : 0;
-  var runningTask = tasks.find(function (t) {
-    return t.running;
-  });
-
-  var S = {
-    app: { fontFamily: "'Hiragino Sans','Noto Sans JP',system-ui,sans-serif", background: "#F2F4F7", minHeight: "100vh", color: "#17222E", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column" }
+  const endTime = new Date(now + remainingSec * 1000);
+  const totalEst = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
+  const doneEst = tasks.filter(t => t.done).reduce((a, t) => a + (t.estimate || 0), 0);
+  const progress = totalEst > 0 ? doneEst / totalEst : 0;
+  const runningTask = tasks.find(t => t.running);
+  const S = {
+    app: {
+      fontFamily: "'Hiragino Sans','Noto Sans JP',system-ui,sans-serif",
+      background: "#F2F4F7",
+      minHeight: "100vh",
+      color: "#17222E",
+      maxWidth: 480,
+      margin: "0 auto",
+      display: "flex",
+      flexDirection: "column"
+    }
   };
-
-  if (loadError) return React.createElement(
-    "div",
-    { style: _extends({}, S.app, { padding: 24 }) },
-    React.createElement(
-      "p",
-      null,
-      "データの読み込みに失敗しました。再読み込みしてください。"
-    )
-  );
-
-  if (!data) return React.createElement(
-    "div",
-    { style: _extends({}, S.app, { alignItems: "center", justifyContent: "center" }) },
-    React.createElement(
-      "div",
-      { style: { color: "#8595A6", fontSize: 14 } },
-      "読み込み中…"
-    )
-  );
-
-  return React.createElement(
-    "div",
-    { style: S.app },
-    React.createElement(
-      "header",
-      { style: { background: "#17222E", color: "#F2F4F7", padding: "calc(env(safe-area-inset-top, 0px) + 18px) 20px 14px", position: "sticky", top: 0, zIndex: 10 } },
-      React.createElement(
-        "div",
-        { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline" } },
-        React.createElement(
-          "div",
-          null,
-          React.createElement(
-            "div",
-            { style: { fontSize: 11, letterSpacing: 2, color: "#8FA3B8" } },
-            new Date(now).getMonth() + 1,
-            "/",
-            new Date(now).getDate(),
-            "(",
-            WEEKDAYS[new Date(now).getDay()],
-            ") ",
-            fmtClock(new Date(now))
-          ),
-          React.createElement(
-            "div",
-            { style: { display: "flex", alignItems: "baseline", gap: 8, marginTop: 4 } },
-            React.createElement(
-              "span",
-              { style: { fontSize: 12, color: "#8FA3B8" } },
-              "終了予定"
-            ),
-            React.createElement(
-              "span",
-              { style: _extends({}, mono, { fontSize: 34, fontWeight: 700, lineHeight: 1 }) },
-              tasks.some(function (t) {
-                return !t.done;
-              }) ? fmtClock(endTime) : "完了"
-            ),
-            remainingSec > 0 && React.createElement(
-              "span",
-              { style: { fontSize: 12, color: "#8FA3B8" } },
-              "残り ",
-              fmtDur(remainingSec)
-            )
-          )
-        ),
-        runningTask && React.createElement(
-          "div",
-          { style: { textAlign: "right" } },
-          React.createElement(
-            "div",
-            { style: { fontSize: 10, color: "#5EEAD4", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" } },
-            React.createElement("span", { style: { width: 6, height: 6, borderRadius: 3, background: "#5EEAD4", animation: "tcmPulse 1.2s infinite" } }),
-            "実行中"
-          ),
-          React.createElement(
-            "div",
-            { style: _extends({}, mono, { fontSize: 16 }) },
-            fmtDur(elapsedSec(runningTask, now))
-          )
-        )
-      ),
-      React.createElement(
-        "div",
-        { style: { marginTop: 12, height: 4, background: "#2C3E50", borderRadius: 2, overflow: "hidden" } },
-        React.createElement("div", { style: { width: progress * 100 + "%", height: "100%", background: "#5EEAD4", transition: "width .4s" } })
-      )
-    ),
-    React.createElement(
-      "main",
-      { style: { flex: 1, overflowY: "auto", paddingBottom: 100 } },
-      view === "today" && React.createElement(TodayView, { tasks: tasks, now: now, sections: sections, modeOf: modeOf,
-        onStart: startTask, onStop: function (id) {
-          return stopTask(id, false);
-        }, onDone: toggleDone, onOpen: setEditTask, onMove: moveTask }),
-      view === "routines" && React.createElement(RoutineView, { routines: data.routines, sections: sections, modeOf: modeOf,
-        onDelete: function (id) {
-          return setData(function (d) {
-            return _extends({}, d, { routines: d.routines.filter(function (r) {
-                return r.id !== id;
-              }) });
-          });
-        } }),
-      view === "log" && React.createElement(LogView, { days: data.days, modeOf: modeOf,
-        onExport: function (key) {
-          return setExportMd({ title: key, md: buildMarkdown(key, data.days[key] && data.days[key].tasks || [], sections, modes) });
-        } }),
-      view === "analysis" && React.createElement(AnalysisView, { data: data, setData: setData, modes: modes, modeOf: modeOf, now: now }),
-      view === "settings" && React.createElement(SettingsView, { data: data, setData: setData,
-        onExportDate: function (key) {
-          return setExportMd({ title: key, md: buildMarkdown(key, data.days[key] && data.days[key].tasks || [], sections, modes) });
-        },
-        onBackup: function () {
-          return setBackupModal("export");
-        },
-        onImport: function () {
-          return setBackupModal("import");
-        } })
-    ),
-    (view === "today" || view === "routines") && React.createElement(
-      "button",
-      { onClick: function () {
-          return setShowAdd(true);
-        },
-        style: { position: "fixed", bottom: "calc(env(safe-area-inset-bottom, 0px) + 76px)", right: "max(16px, calc(50% - 224px))", width: 56, height: 56, borderRadius: 28, background: "#17222E", color: "#5EEAD4", fontSize: 28, border: "none", boxShadow: "0 4px 14px rgba(23,34,46,.35)", cursor: "pointer" },
-        "aria-label": "タスクを追加" },
-      "＋"
-    ),
-    React.createElement(
-      "nav",
-      { style: { position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 480, margin: "0 auto", display: "flex", background: "#FFFFFF", borderTop: "1px solid #E1E6EC", paddingBottom: "env(safe-area-inset-bottom, 0px)" } },
-      [["today", "今日"], ["routines", "ルーチン"], ["log", "ログ"], ["analysis", "分析"], ["settings", "設定"]].map(function (_ref2) {
-        var _ref22 = _slicedToArray(_ref2, 2);
-
-        var id = _ref22[0];
-        var label = _ref22[1];
-        return React.createElement(
-          "button",
-          { key: id, onClick: function () {
-              return setView(id);
-            },
-            style: { flex: 1, padding: "12px 0 14px", border: "none", background: "none", fontSize: 12, fontWeight: view === id ? 700 : 400, color: view === id ? "#17222E" : "#8595A6", borderTop: view === id ? "2px solid #17222E" : "2px solid transparent", cursor: "pointer" } },
-          label
-        );
-      })
-    ),
-    showAdd && React.createElement(AddModal, { sections: sections, modes: modes, defaultRoutine: view === "routines",
-      onClose: function () {
-        return setShowAdd(false);
-      },
-      onAdd: function (item, asRoutine) {
-        if (asRoutine) {
-          (function () {
-            var r = { id: uid(), name: item.name, estimate: item.estimate, section: item.section, mode: item.mode, days: item.days };
-            setData(function (d) {
-              return expandRoutines(_extends({}, d, { routines: [].concat(_toConsumableArray(d.routines), [r]) }));
-            });
-          })();
-        } else {
-          updateTasks(function (ts) {
-            return [].concat(_toConsumableArray(ts), [_extends({ id: uid() }, item, { actualSec: 0, running: false, done: false, comment: "" })]);
-          });
-        }
-        setShowAdd(false);
-      } }),
-    editTask && React.createElement(DetailModal, { task: tasks.find(function (t) {
-        return t.id === editTask.id;
-      }) || editTask, now: now,
-      onClose: function () {
-        return setEditTask(null);
-      },
-      onSave: function (patch) {
-        updateTasks(function (ts) {
-          return ts.map(function (t) {
-            return t.id === editTask.id ? _extends({}, t, patch) : t;
-          });
-        });setEditTask(null);
-      },
-      onDelete: function () {
-        deleteTask(editTask.id);setEditTask(null);
-      } }),
-    exportMd && React.createElement(ExportModal, { title: exportMd.title, md: exportMd.md, onClose: function () {
-        return setExportMd(null);
-      } }),
-    backupModal === "export" && React.createElement(BackupModal, { data: data, onClose: function () {
-        return setBackupModal(null);
-      } }),
-    backupModal === "import" && React.createElement(ImportModal, { onClose: function () {
-        return setBackupModal(null);
-      },
-      onImport: function (d) {
-        setData(expandRoutines(normalize(d)));setBackupModal(null);
-      } })
-  );
+  if (loadError) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S.app,
+      padding: 24
+    }
+  }, /*#__PURE__*/React.createElement("p", null, "データの読み込みに失敗しました。再読み込みしてください。"));
+  if (!data) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S.app,
+      alignItems: "center",
+      justifyContent: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: "#8595A6",
+      fontSize: 14
+    }
+  }, "読み込み中…"));
+  return /*#__PURE__*/React.createElement("div", {
+    style: S.app
+  }, /*#__PURE__*/React.createElement("header", {
+    style: {
+      background: "#17222E",
+      color: "#F2F4F7",
+      padding: "calc(env(safe-area-inset-top, 0px) + 18px) 20px 14px",
+      position: "sticky",
+      top: 0,
+      zIndex: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "baseline"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      letterSpacing: 2,
+      color: "#8FA3B8"
+    }
+  }, new Date(now).getMonth() + 1, "/", new Date(now).getDate(), "(", WEEKDAYS[new Date(now).getDay()], ") ", fmtClock(new Date(now))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "baseline",
+      gap: 8,
+      marginTop: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: "#8FA3B8"
+    }
+  }, "終了予定"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      ...mono,
+      fontSize: 34,
+      fontWeight: 700,
+      lineHeight: 1
+    }
+  }, tasks.some(t => !t.done) ? fmtClock(endTime) : "完了"), remainingSec > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: "#8FA3B8"
+    }
+  }, "残り ", fmtDur(remainingSec)))), runningTask && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "right"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#5EEAD4",
+      display: "flex",
+      alignItems: "center",
+      gap: 4,
+      justifyContent: "flex-end"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      background: "#5EEAD4",
+      animation: "tcmPulse 1.2s infinite"
+    }
+  }), "実行中"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...mono,
+      fontSize: 16
+    }
+  }, fmtDur(elapsedSec(runningTask, now))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12,
+      height: 4,
+      background: "#2C3E50",
+      borderRadius: 2,
+      overflow: "hidden"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: `${progress * 100}%`,
+      height: "100%",
+      background: "#5EEAD4",
+      transition: "width .4s"
+    }
+  }))), /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      overflowY: "auto",
+      paddingBottom: 100
+    }
+  }, view === "today" && /*#__PURE__*/React.createElement(TodayView, {
+    tasks: tasks,
+    now: now,
+    sections: sections,
+    modeOf: modeOf,
+    onStart: startTask,
+    onStop: id => stopTask(id, false),
+    onDone: toggleDone,
+    onOpen: setEditTask,
+    onMove: moveTask
+  }), view === "routines" && /*#__PURE__*/React.createElement(RoutineView, {
+    routines: data.routines,
+    sections: sections,
+    modeOf: modeOf,
+    onDelete: id => setData(d => ({
+      ...d,
+      routines: d.routines.filter(r => r.id !== id)
+    }))
+  }), view === "log" && /*#__PURE__*/React.createElement(LogView, {
+    days: data.days,
+    modeOf: modeOf,
+    onExport: key => setExportMd({
+      title: key,
+      md: buildMarkdown(key, data.days[key] && data.days[key].tasks || [], sections, modes)
+    })
+  }), view === "analysis" && /*#__PURE__*/React.createElement(AnalysisView, {
+    data: data,
+    setData: setData,
+    modes: modes,
+    modeOf: modeOf,
+    now: now
+  }), view === "settings" && /*#__PURE__*/React.createElement(SettingsView, {
+    data: data,
+    setData: setData,
+    onExportDate: key => setExportMd({
+      title: key,
+      md: buildMarkdown(key, data.days[key] && data.days[key].tasks || [], sections, modes)
+    }),
+    onBackup: () => setBackupModal("export"),
+    onImport: () => setBackupModal("import")
+  })), (view === "today" || view === "routines") && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowAdd(true),
+    style: {
+      position: "fixed",
+      bottom: "calc(env(safe-area-inset-bottom, 0px) + 76px)",
+      right: "max(16px, calc(50% - 224px))",
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      background: "#17222E",
+      color: "#5EEAD4",
+      fontSize: 28,
+      border: "none",
+      boxShadow: "0 4px 14px rgba(23,34,46,.35)",
+      cursor: "pointer"
+    },
+    "aria-label": "タスクを追加"
+  }, "＋"), /*#__PURE__*/React.createElement("nav", {
+    style: {
+      position: "fixed",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      maxWidth: 480,
+      margin: "0 auto",
+      display: "flex",
+      background: "#FFFFFF",
+      borderTop: "1px solid #E1E6EC",
+      paddingBottom: "env(safe-area-inset-bottom, 0px)"
+    }
+  }, [["today", "今日"], ["routines", "ルーチン"], ["log", "ログ"], ["analysis", "分析"], ["settings", "設定"]].map(([id, label]) => /*#__PURE__*/React.createElement("button", {
+    key: id,
+    onClick: () => setView(id),
+    style: {
+      flex: 1,
+      padding: "12px 0 14px",
+      border: "none",
+      background: "none",
+      fontSize: 12,
+      fontWeight: view === id ? 700 : 400,
+      color: view === id ? "#17222E" : "#8595A6",
+      borderTop: view === id ? "2px solid #17222E" : "2px solid transparent",
+      cursor: "pointer"
+    }
+  }, label))), showAdd && /*#__PURE__*/React.createElement(AddModal, {
+    sections: sections,
+    modes: modes,
+    defaultRoutine: view === "routines",
+    onClose: () => setShowAdd(false),
+    onAdd: (item, asRoutine) => {
+      if (asRoutine) {
+        const r = {
+          id: uid(),
+          name: item.name,
+          estimate: item.estimate,
+          section: item.section,
+          mode: item.mode,
+          days: item.days
+        };
+        setData(d => expandRoutines({
+          ...d,
+          routines: [...d.routines, r]
+        }));
+      } else {
+        updateTasks(ts => [...ts, {
+          id: uid(),
+          ...item,
+          actualSec: 0,
+          running: false,
+          done: false,
+          comment: ""
+        }]);
+      }
+      setShowAdd(false);
+    }
+  }), editTask && /*#__PURE__*/React.createElement(DetailModal, {
+    task: tasks.find(t => t.id === editTask.id) || editTask,
+    now: now,
+    onClose: () => setEditTask(null),
+    onSave: patch => {
+      updateTasks(ts => ts.map(t => t.id === editTask.id ? {
+        ...t,
+        ...patch
+      } : t));
+      setEditTask(null);
+    },
+    onDelete: () => {
+      deleteTask(editTask.id);
+      setEditTask(null);
+    }
+  }), exportMd && /*#__PURE__*/React.createElement(ExportModal, {
+    title: exportMd.title,
+    md: exportMd.md,
+    onClose: () => setExportMd(null)
+  }), backupModal === "export" && /*#__PURE__*/React.createElement(BackupModal, {
+    data: data,
+    onClose: () => setBackupModal(null)
+  }), backupModal === "import" && /*#__PURE__*/React.createElement(ImportModal, {
+    onClose: () => setBackupModal(null),
+    onImport: d => {
+      setData(expandRoutines(normalize(d)));
+      setBackupModal(null);
+    }
+  }));
 }
 
 // ===== 今日ビュー =====
-function TodayView(_ref3) {
-  var tasks = _ref3.tasks;
-  var now = _ref3.now;
-  var sections = _ref3.sections;
-  var modeOf = _ref3.modeOf;
-  var onStart = _ref3.onStart;
-  var onStop = _ref3.onStop;
-  var onDone = _ref3.onDone;
-  var onOpen = _ref3.onOpen;
-  var onMove = _ref3.onMove;
-
-  if (tasks.length === 0) return React.createElement(
-    "div",
-    { style: { padding: "60px 24px", textAlign: "center", color: "#8595A6", fontSize: 14, lineHeight: 1.8 } },
-    "今日のタスクはまだありません。",
-    React.createElement("br", null),
-    "＋ボタンから追加するか、ルーチンを登録すると毎日自動で並びます。"
-  );
-  var known = new Set(sections.map(function (s) {
-    return s.id;
+function TodayView({
+  tasks,
+  now,
+  sections,
+  modeOf,
+  onStart,
+  onStop,
+  onDone,
+  onOpen,
+  onMove
+}) {
+  if (tasks.length === 0) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "60px 24px",
+      textAlign: "center",
+      color: "#8595A6",
+      fontSize: 14,
+      lineHeight: 1.8
+    }
+  }, "今日のタスクはまだありません。", /*#__PURE__*/React.createElement("br", null), "＋ボタンから追加するか、ルーチンを登録すると毎日自動で並びます。");
+  const known = new Set(sections.map(s => s.id));
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "8px 12px"
+    }
+  }, sections.map((sec, si) => {
+    const list = tasks.filter(t => t.section === sec.id || si === 0 && !known.has(t.section));
+    if (list.length === 0) return null;
+    const secEst = list.filter(t => !t.done).reduce((a, t) => a + (t.estimate || 0), 0);
+    return /*#__PURE__*/React.createElement("section", {
+      key: sec.id,
+      style: {
+        marginTop: 16
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline",
+        padding: "0 6px 6px"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700
+      }
+    }, sec.label, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontWeight: 400,
+        color: "#8595A6",
+        fontSize: 11,
+        marginLeft: 6
+      }
+    }, sec.range)), secEst > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        ...mono,
+        fontSize: 11,
+        color: "#8595A6"
+      }
+    }, "残 ", fmtMin(secEst))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: "#FFFFFF",
+        borderRadius: 12,
+        overflow: "hidden",
+        boxShadow: "0 1px 2px rgba(23,34,46,.06)"
+      }
+    }, list.map((t, i) => {
+      const mode = modeOf(t.mode);
+      const el = elapsedSec(t, now);
+      const over = !t.done && t.estimate && el > t.estimate * 60;
+      return /*#__PURE__*/React.createElement("div", {
+        key: t.id,
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "10px 12px",
+          borderTop: i > 0 ? "1px solid #EDF0F4" : "none",
+          borderLeft: t.running ? "3px solid #0D9488" : "3px solid transparent",
+          background: t.running ? "#F0FBFA" : "transparent",
+          opacity: t.done ? 0.5 : 1
+        }
+      }, /*#__PURE__*/React.createElement("button", {
+        onClick: () => onDone(t),
+        "aria-label": "完了",
+        style: {
+          width: 22,
+          height: 22,
+          borderRadius: 11,
+          border: `2px solid ${t.done ? mode.color : "#C6CEDA"}`,
+          background: t.done ? mode.color : "#fff",
+          color: "#fff",
+          fontSize: 12,
+          lineHeight: 1,
+          cursor: "pointer",
+          flexShrink: 0
+        }
+      }, t.done ? "✓" : ""), /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: 1,
+          minWidth: 0
+        },
+        onClick: () => onOpen(t)
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 14,
+          fontWeight: 500,
+          textDecoration: t.done ? "line-through" : "none",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap"
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          display: "inline-block",
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          background: mode.color,
+          marginRight: 6
+        }
+      }), t.name), /*#__PURE__*/React.createElement("div", {
+        style: {
+          ...mono,
+          fontSize: 11,
+          color: over ? "#DC2626" : "#8595A6",
+          marginTop: 2
+        }
+      }, "見積 ", fmtMin(t.estimate || 0), el > 0 && ` ・ 実績 ${fmtDur(el)}`, t.startClock && ` ・ ${t.startClock}${t.endClock ? "→" + t.endClock : "〜"}`)), !t.done && /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: "flex",
+          flexDirection: "column",
+          gap: 2
+        }
+      }, /*#__PURE__*/React.createElement("button", {
+        onClick: () => onMove(t.id, -1),
+        style: arrowBtn,
+        "aria-label": "上へ"
+      }, "▲"), /*#__PURE__*/React.createElement("button", {
+        onClick: () => onMove(t.id, 1),
+        style: arrowBtn,
+        "aria-label": "下へ"
+      }, "▼")), !t.done && /*#__PURE__*/React.createElement("button", {
+        onClick: () => t.running ? onStop(t.id) : onStart(t.id),
+        style: {
+          ...mono,
+          padding: "8px 12px",
+          borderRadius: 8,
+          border: "none",
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: "pointer",
+          background: t.running ? "#0D9488" : "#EDF0F4",
+          color: t.running ? "#fff" : "#17222E",
+          flexShrink: 0
+        }
+      }, t.running ? "停止" : "開始"));
+    })));
   }));
-  return React.createElement(
-    "div",
-    { style: { padding: "8px 12px" } },
-    sections.map(function (sec, si) {
-      var list = tasks.filter(function (t) {
-        return t.section === sec.id || si === 0 && !known.has(t.section);
-      });
-      if (list.length === 0) return null;
-      var secEst = list.filter(function (t) {
-        return !t.done;
-      }).reduce(function (a, t) {
-        return a + (t.estimate || 0);
-      }, 0);
-      return React.createElement(
-        "section",
-        { key: sec.id, style: { marginTop: 16 } },
-        React.createElement(
-          "div",
-          { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 6px 6px" } },
-          React.createElement(
-            "span",
-            { style: { fontSize: 13, fontWeight: 700 } },
-            sec.label,
-            React.createElement(
-              "span",
-              { style: { fontWeight: 400, color: "#8595A6", fontSize: 11, marginLeft: 6 } },
-              sec.range
-            )
-          ),
-          secEst > 0 && React.createElement(
-            "span",
-            { style: _extends({}, mono, { fontSize: 11, color: "#8595A6" }) },
-            "残 ",
-            fmtMin(secEst)
-          )
-        ),
-        React.createElement(
-          "div",
-          { style: { background: "#FFFFFF", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(23,34,46,.06)" } },
-          list.map(function (t, i) {
-            var mode = modeOf(t.mode);
-            var el = elapsedSec(t, now);
-            var over = !t.done && t.estimate && el > t.estimate * 60;
-            return React.createElement(
-              "div",
-              { key: t.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderTop: i > 0 ? "1px solid #EDF0F4" : "none", borderLeft: t.running ? "3px solid #0D9488" : "3px solid transparent", background: t.running ? "#F0FBFA" : "transparent", opacity: t.done ? 0.5 : 1 } },
-              React.createElement(
-                "button",
-                { onClick: function () {
-                    return onDone(t);
-                  }, "aria-label": "完了",
-                  style: { width: 22, height: 22, borderRadius: 11, border: "2px solid " + (t.done ? mode.color : "#C6CEDA"), background: t.done ? mode.color : "#fff", color: "#fff", fontSize: 12, lineHeight: 1, cursor: "pointer", flexShrink: 0 } },
-                t.done ? "✓" : ""
-              ),
-              React.createElement(
-                "div",
-                { style: { flex: 1, minWidth: 0 }, onClick: function () {
-                    return onOpen(t);
-                  } },
-                React.createElement(
-                  "div",
-                  { style: { fontSize: 14, fontWeight: 500, textDecoration: t.done ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } },
-                  React.createElement("span", { style: { display: "inline-block", width: 8, height: 8, borderRadius: 4, background: mode.color, marginRight: 6 } }),
-                  t.name
-                ),
-                React.createElement(
-                  "div",
-                  { style: _extends({}, mono, { fontSize: 11, color: over ? "#DC2626" : "#8595A6", marginTop: 2 }) },
-                  "見積 ",
-                  fmtMin(t.estimate || 0),
-                  el > 0 && " ・ 実績 " + fmtDur(el),
-                  t.startClock && " ・ " + t.startClock + (t.endClock ? "→" + t.endClock : "〜")
-                )
-              ),
-              !t.done && React.createElement(
-                "div",
-                { style: { display: "flex", flexDirection: "column", gap: 2 } },
-                React.createElement(
-                  "button",
-                  { onClick: function () {
-                      return onMove(t.id, -1);
-                    }, style: arrowBtn, "aria-label": "上へ" },
-                  "▲"
-                ),
-                React.createElement(
-                  "button",
-                  { onClick: function () {
-                      return onMove(t.id, 1);
-                    }, style: arrowBtn, "aria-label": "下へ" },
-                  "▼"
-                )
-              ),
-              !t.done && React.createElement(
-                "button",
-                { onClick: function () {
-                    return t.running ? onStop(t.id) : onStart(t.id);
-                  },
-                  style: _extends({}, mono, { padding: "8px 12px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: t.running ? "#0D9488" : "#EDF0F4", color: t.running ? "#fff" : "#17222E", flexShrink: 0 }) },
-                t.running ? "停止" : "開始"
-              )
-            );
-          })
-        )
-      );
-    })
-  );
 }
-
-var arrowBtn = { border: "none", background: "none", color: "#C6CEDA", fontSize: 9, padding: 4, cursor: "pointer" };
+const arrowBtn = {
+  border: "none",
+  background: "none",
+  color: "#C6CEDA",
+  fontSize: 9,
+  padding: 4,
+  cursor: "pointer"
+};
 
 // ===== ルーチンビュー =====
-function RoutineView(_ref4) {
-  var routines = _ref4.routines;
-  var sections = _ref4.sections;
-  var modeOf = _ref4.modeOf;
-  var onDelete = _ref4.onDelete;
-
-  if (routines.length === 0) return React.createElement(
-    "div",
-    { style: { padding: "60px 24px", textAlign: "center", color: "#8595A6", fontSize: 14, lineHeight: 1.8 } },
-    "ルーチンはまだありません。",
-    React.createElement("br", null),
-    "＋ボタンで「ルーチンとして登録」をオンにすると、指定した曜日に毎日自動でタスクが並びます。"
-  );
-  return React.createElement(
-    "div",
-    { style: { padding: "16px 12px" } },
-    React.createElement(
-      "div",
-      { style: { background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(23,34,46,.06)" } },
-      routines.map(function (r, i) {
-        var mode = modeOf(r.mode);
-        var sec = sections.find(function (s) {
-          return s.id === r.section;
-        });
-        return React.createElement(
-          "div",
-          { key: r.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "12px", borderTop: i > 0 ? "1px solid #EDF0F4" : "none" } },
-          React.createElement("span", { style: { width: 8, height: 8, borderRadius: 4, background: mode.color, flexShrink: 0 } }),
-          React.createElement(
-            "div",
-            { style: { flex: 1 } },
-            React.createElement(
-              "div",
-              { style: { fontSize: 14, fontWeight: 500 } },
-              r.name
-            ),
-            React.createElement(
-              "div",
-              { style: { fontSize: 11, color: "#8595A6", marginTop: 2 } },
-              sec && sec.label || "?",
-              " ・ ",
-              fmtMin(r.estimate),
-              " ・ ",
-              !r.days || r.days.length === 0 || r.days.length === 7 ? "毎日" : r.days.map(function (d) {
-                return WEEKDAYS[d];
-              }).join("")
-            )
-          ),
-          React.createElement(
-            "button",
-            { onClick: function () {
-                return onDelete(r.id);
-              }, style: { border: "none", background: "none", color: "#C6CEDA", fontSize: 13, cursor: "pointer" } },
-            "削除"
-          )
-        );
-      })
-    ),
-    React.createElement(
-      "p",
-      { style: { fontSize: 11, color: "#8595A6", padding: "12px 6px", lineHeight: 1.7 } },
-      "ルーチンを削除しても、今日すでに展開されたタスクは残ります。"
-    )
-  );
+function RoutineView({
+  routines,
+  sections,
+  modeOf,
+  onDelete
+}) {
+  if (routines.length === 0) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "60px 24px",
+      textAlign: "center",
+      color: "#8595A6",
+      fontSize: 14,
+      lineHeight: 1.8
+    }
+  }, "ルーチンはまだありません。", /*#__PURE__*/React.createElement("br", null), "＋ボタンで「ルーチンとして登録」をオンにすると、指定した曜日に毎日自動でタスクが並びます。");
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px 12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#fff",
+      borderRadius: 12,
+      overflow: "hidden",
+      boxShadow: "0 1px 2px rgba(23,34,46,.06)"
+    }
+  }, routines.map((r, i) => {
+    const mode = modeOf(r.mode);
+    const sec = sections.find(s => s.id === r.section);
+    return /*#__PURE__*/React.createElement("div", {
+      key: r.id,
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px",
+        borderTop: i > 0 ? "1px solid #EDF0F4" : "none"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        background: mode.color,
+        flexShrink: 0
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 14,
+        fontWeight: 500
+      }
+    }, r.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: "#8595A6",
+        marginTop: 2
+      }
+    }, sec && sec.label || "?", " ・ ", fmtMin(r.estimate), " ・ ", !r.days || r.days.length === 0 || r.days.length === 7 ? "毎日" : r.days.map(d => WEEKDAYS[d]).join(""))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onDelete(r.id),
+      style: {
+        border: "none",
+        background: "none",
+        color: "#C6CEDA",
+        fontSize: 13,
+        cursor: "pointer"
+      }
+    }, "削除"));
+  })), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      padding: "12px 6px",
+      lineHeight: 1.7
+    }
+  }, "ルーチンを削除しても、今日すでに展開されたタスクは残ります。"));
 }
 
 // ===== ログビュー =====
-function LogView(_ref5) {
-  var days = _ref5.days;
-  var modeOf = _ref5.modeOf;
-  var onExport = _ref5.onExport;
-
-  var keys = Object.keys(days).sort().reverse();
-  var rows = keys.map(function (k) {
-    var done = (days[k] && days[k].tasks || []).filter(function (t) {
-      return t.done;
-    });
-    var est = done.reduce(function (a, t) {
-      return a + (t.estimate || 0);
-    }, 0);
-    var act = done.reduce(function (a, t) {
-      return a + (t.actualSec || 0);
-    }, 0);
-    return { key: k, done: done, est: est, act: act };
-  }).filter(function (r) {
-    return r.done.length > 0;
-  });
-  if (rows.length === 0) return React.createElement(
-    "div",
-    { style: { padding: "60px 24px", textAlign: "center", color: "#8595A6", fontSize: 14 } },
-    "完了したタスクがまだありません。"
-  );
-  return React.createElement(
-    "div",
-    { style: { padding: "16px 12px" } },
-    rows.map(function (r) {
-      return React.createElement(
-        "section",
-        { key: r.key, style: { marginBottom: 20 } },
-        React.createElement(
-          "div",
-          { style: { display: "flex", justifyContent: "space-between", padding: "0 6px 6px", alignItems: "center" } },
-          React.createElement(
-            "span",
-            { style: { fontSize: 13, fontWeight: 700 } },
-            r.key
-          ),
-          React.createElement(
-            "div",
-            { style: { display: "flex", alignItems: "center", gap: 8 } },
-            React.createElement(
-              "span",
-              { style: _extends({}, mono, { fontSize: 11, color: "#8595A6" }) },
-              r.done.length,
-              "件 ・ 見積",
-              fmtMin(r.est),
-              " / 実績",
-              fmtDur(r.act)
-            ),
-            React.createElement(
-              "button",
-              { onClick: function () {
-                  return onExport(r.key);
-                },
-                style: { border: "1px solid #C6CEDA", background: "#fff", color: "#17222E", fontSize: 11, borderRadius: 6, padding: "4px 8px", cursor: "pointer" } },
-              "MD"
-            )
-          )
-        ),
-        React.createElement(
-          "div",
-          { style: { background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(23,34,46,.06)" } },
-          r.done.map(function (t, i) {
-            return React.createElement(
-              "div",
-              { key: t.id, style: { padding: "10px 12px", borderTop: i > 0 ? "1px solid #EDF0F4" : "none" } },
-              React.createElement(
-                "div",
-                { style: { fontSize: 13 } },
-                React.createElement("span", { style: { display: "inline-block", width: 8, height: 8, borderRadius: 4, background: modeOf(t.mode).color, marginRight: 6 } }),
-                t.name
-              ),
-              React.createElement(
-                "div",
-                { style: _extends({}, mono, { fontSize: 11, color: "#8595A6", marginTop: 2 }) },
-                t.startClock || "--:--",
-                "→",
-                t.endClock || "--:--",
-                " ・ 見積",
-                fmtMin(t.estimate || 0),
-                " / 実績",
-                fmtDur(t.actualSec || 0)
-              ),
-              t.comment && React.createElement(
-                "div",
-                { style: { fontSize: 12, color: "#5B6B7C", marginTop: 4 } },
-                "💬 ",
-                t.comment
-              )
-            );
-          })
-        )
-      );
-    })
-  );
+function LogView({
+  days,
+  modeOf,
+  onExport
+}) {
+  const keys = Object.keys(days).sort().reverse();
+  const rows = keys.map(k => {
+    const done = (days[k] && days[k].tasks || []).filter(t => t.done);
+    const est = done.reduce((a, t) => a + (t.estimate || 0), 0);
+    const act = done.reduce((a, t) => a + (t.actualSec || 0), 0);
+    return {
+      key: k,
+      done,
+      est,
+      act
+    };
+  }).filter(r => r.done.length > 0);
+  if (rows.length === 0) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "60px 24px",
+      textAlign: "center",
+      color: "#8595A6",
+      fontSize: 14
+    }
+  }, "完了したタスクがまだありません。");
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px 12px"
+    }
+  }, rows.map(r => /*#__PURE__*/React.createElement("section", {
+    key: r.key,
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      padding: "0 6px 6px",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, r.key), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      ...mono,
+      fontSize: 11,
+      color: "#8595A6"
+    }
+  }, r.done.length, "件 ・ 見積", fmtMin(r.est), " / 実績", fmtDur(r.act)), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onExport(r.key),
+    style: {
+      border: "1px solid #C6CEDA",
+      background: "#fff",
+      color: "#17222E",
+      fontSize: 11,
+      borderRadius: 6,
+      padding: "4px 8px",
+      cursor: "pointer"
+    }
+  }, "MD"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#fff",
+      borderRadius: 12,
+      overflow: "hidden",
+      boxShadow: "0 1px 2px rgba(23,34,46,.06)"
+    }
+  }, r.done.map((t, i) => /*#__PURE__*/React.createElement("div", {
+    key: t.id,
+    style: {
+      padding: "10px 12px",
+      borderTop: i > 0 ? "1px solid #EDF0F4" : "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "inline-block",
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      background: modeOf(t.mode).color,
+      marginRight: 6
+    }
+  }), t.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...mono,
+      fontSize: 11,
+      color: "#8595A6",
+      marginTop: 2
+    }
+  }, t.startClock || "--:--", "→", t.endClock || "--:--", " ・ 見積", fmtMin(t.estimate || 0), " / 実績", fmtDur(t.actualSec || 0)), t.comment && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "#5B6B7C",
+      marginTop: 4
+    }
+  }, "💬 ", t.comment)))))));
 }
 
 // ===== 日別チャート(div描画) =====
-function DailyChart(_ref6) {
-  var rows = _ref6.rows;
-
-  var max = Math.max.apply(Math, _toConsumableArray(rows.map(function (d) {
-    return Math.max(d.est, d.act);
-  })).concat([60]));
-  return React.createElement(
-    "div",
-    null,
-    React.createElement(
-      "div",
-      { style: { display: "flex", justifyContent: "flex-end", gap: 12, fontSize: 10, color: "#8595A6", padding: "0 4px 8px" } },
-      React.createElement(
-        "span",
-        null,
-        React.createElement("span", { style: { display: "inline-block", width: 8, height: 8, background: "#C6CEDA", borderRadius: 2, marginRight: 4 } }),
-        "見積"
-      ),
-      React.createElement(
-        "span",
-        null,
-        React.createElement("span", { style: { display: "inline-block", width: 8, height: 8, background: "#0D9488", borderRadius: 2, marginRight: 4 } }),
-        "実績"
-      ),
-      React.createElement(
-        "span",
-        { style: mono },
-        "最大 ",
-        fmtMin(max)
-      )
-    ),
-    React.createElement(
-      "div",
-      { style: { display: "flex", alignItems: "flex-end", gap: rows.length > 10 ? 1 : 3, height: 140, borderBottom: "1px solid #E1E6EC" } },
-      rows.map(function (d, i) {
-        return React.createElement(
-          "div",
-          { key: i, style: { flex: 1, display: "flex", alignItems: "flex-end", gap: 1, height: "100%" } },
-          React.createElement("div", { style: { flex: 1, background: "#C6CEDA", height: d.est / max * 100 + "%", borderRadius: "2px 2px 0 0", minHeight: d.est > 0 ? 2 : 0 } }),
-          React.createElement("div", { style: { flex: 1, background: "#0D9488", height: d.act / max * 100 + "%", borderRadius: "2px 2px 0 0", minHeight: d.act > 0 ? 2 : 0 } })
-        );
-      })
-    ),
-    React.createElement(
-      "div",
-      { style: { display: "flex", justifyContent: "space-between", fontSize: 9, color: "#8595A6", paddingTop: 4 } },
-      React.createElement(
-        "span",
-        { style: mono },
-        rows[0] && rows[0].day
-      ),
-      rows.length > 2 && React.createElement(
-        "span",
-        { style: mono },
-        rows[Math.floor(rows.length / 2)].day
-      ),
-      React.createElement(
-        "span",
-        { style: mono },
-        rows[rows.length - 1] && rows[rows.length - 1].day
-      )
-    )
-  );
+function DailyChart({
+  rows
+}) {
+  const max = Math.max(...rows.map(d => Math.max(d.est, d.act)), 60);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: 12,
+      fontSize: 10,
+      color: "#8595A6",
+      padding: "0 4px 8px"
+    }
+  }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "inline-block",
+      width: 8,
+      height: 8,
+      background: "#C6CEDA",
+      borderRadius: 2,
+      marginRight: 4
+    }
+  }), "見積"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "inline-block",
+      width: 8,
+      height: 8,
+      background: "#0D9488",
+      borderRadius: 2,
+      marginRight: 4
+    }
+  }), "実績"), /*#__PURE__*/React.createElement("span", {
+    style: mono
+  }, "最大 ", fmtMin(max))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "flex-end",
+      gap: rows.length > 10 ? 1 : 3,
+      height: 140,
+      borderBottom: "1px solid #E1E6EC"
+    }
+  }, rows.map((d, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      flex: 1,
+      display: "flex",
+      alignItems: "flex-end",
+      gap: 1,
+      height: "100%"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      background: "#C6CEDA",
+      height: `${d.est / max * 100}%`,
+      borderRadius: "2px 2px 0 0",
+      minHeight: d.est > 0 ? 2 : 0
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      background: "#0D9488",
+      height: `${d.act / max * 100}%`,
+      borderRadius: "2px 2px 0 0",
+      minHeight: d.act > 0 ? 2 : 0
+    }
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      fontSize: 9,
+      color: "#8595A6",
+      paddingTop: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: mono
+  }, rows[0] && rows[0].day), rows.length > 2 && /*#__PURE__*/React.createElement("span", {
+    style: mono
+  }, rows[Math.floor(rows.length / 2)].day), /*#__PURE__*/React.createElement("span", {
+    style: mono
+  }, rows[rows.length - 1] && rows[rows.length - 1].day)));
 }
 
 // ===== 分析ビュー =====
-function AnalysisView(_ref7) {
-  var data = _ref7.data;
-  var setData = _ref7.setData;
-  var modes = _ref7.modes;
-  var modeOf = _ref7.modeOf;
-  var now = _ref7.now;
-
-  var _useState10 = useState(7);
-
-  var _useState102 = _slicedToArray(_useState10, 2);
-
-  var range = _useState102[0];
-  var setRange = _useState102[1];
-
-  var _useState11 = useState(null);
-
-  var _useState112 = _slicedToArray(_useState11, 2);
-
-  var goalModal = _useState112[0];
-  var setGoalModal = _useState112[1];
-
-  var card = { background: "#fff", borderRadius: 12, boxShadow: "0 1px 2px rgba(23,34,46,.06)" };
-  var h = { fontSize: 13, fontWeight: 700, padding: "0 6px 6px" };
-
-  var collectTasks = useCallback(function (keys) {
-    var out = [];
-    var _iteratorNormalCompletion3 = true;
-    var _didIteratorError3 = false;
-    var _iteratorError3 = undefined;
-
-    try {
-      for (var _iterator3 = keys[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
-        var k = _step3.value;
-        var _iteratorNormalCompletion4 = true;
-        var _didIteratorError4 = false;
-        var _iteratorError4 = undefined;
-
-        try {
-          for (var _iterator4 = (data.days[k] && data.days[k].tasks || [])[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
-            var t = _step4.value;
-            out.push(_extends({}, t, { _day: k }));
-          }
-        } catch (err) {
-          _didIteratorError4 = true;
-          _iteratorError4 = err;
-        } finally {
-          try {
-            if (!_iteratorNormalCompletion4 && _iterator4["return"]) {
-              _iterator4["return"]();
-            }
-          } finally {
-            if (_didIteratorError4) {
-              throw _iteratorError4;
-            }
-          }
-        }
-      }
-    } catch (err) {
-      _didIteratorError3 = true;
-      _iteratorError3 = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion3 && _iterator3["return"]) {
-          _iterator3["return"]();
-        }
-      } finally {
-        if (_didIteratorError3) {
-          throw _iteratorError3;
-        }
-      }
+function AnalysisView({
+  data,
+  setData,
+  modes,
+  modeOf,
+  now
+}) {
+  const [range, setRange] = useState(7);
+  const [goalModal, setGoalModal] = useState(null);
+  const card = {
+    background: "#fff",
+    borderRadius: 12,
+    boxShadow: "0 1px 2px rgba(23,34,46,.06)"
+  };
+  const h = {
+    fontSize: 13,
+    fontWeight: 700,
+    padding: "0 6px 6px"
+  };
+  const collectTasks = useCallback(keys => {
+    const out = [];
+    for (const k of keys) {
+      for (const t of data.days[k] && data.days[k].tasks || []) out.push({
+        ...t,
+        _day: k
+      });
     }
-
     return out;
   }, [data.days]);
-
-  var goalProgress = useCallback(function (g) {
-    var keys = periodKeys(g.period);
-    var ts = collectTasks(keys);
-    var sec = ts.reduce(function (a, t) {
+  const goalProgress = useCallback(g => {
+    const keys = periodKeys(g.period);
+    const ts = collectTasks(keys);
+    const sec = ts.reduce((a, t) => {
       if (g.mode && t.mode !== g.mode) return a;
       if (g.keyword && !t.name.includes(g.keyword)) return a;
       return a + elapsedSec(t, now);
     }, 0);
     return sec / 60;
   }, [collectTasks, now]);
-
-  var dailyData = useMemo(function () {
-    return lastNDaysKeys(range).map(function (k) {
-      var ts = data.days[k] && data.days[k].tasks || [];
+  const dailyData = useMemo(() => {
+    return lastNDaysKeys(range).map(k => {
+      const ts = data.days[k] && data.days[k].tasks || [];
       return {
         day: k.slice(5).replace("-", "/"),
-        act: Math.round(ts.reduce(function (a, t) {
-          return a + (t.actualSec || 0);
-        }, 0) / 60),
-        est: ts.reduce(function (a, t) {
-          return a + (t.estimate || 0);
-        }, 0)
+        act: Math.round(ts.reduce((a, t) => a + (t.actualSec || 0), 0) / 60),
+        est: ts.reduce((a, t) => a + (t.estimate || 0), 0)
       };
     });
   }, [data.days, range]);
-
-  var modeDist = useMemo(function () {
-    var ts = collectTasks(lastNDaysKeys(range));
-    var map = {};
-    var total = 0;
-    var _iteratorNormalCompletion5 = true;
-    var _didIteratorError5 = false;
-    var _iteratorError5 = undefined;
-
-    try {
-      for (var _iterator5 = ts[Symbol.iterator](), _step5; !(_iteratorNormalCompletion5 = (_step5 = _iterator5.next()).done); _iteratorNormalCompletion5 = true) {
-        var t = _step5.value;
-
-        var sec = t.actualSec || 0;
-        map[t.mode] = (map[t.mode] || 0) + sec;
-        total += sec;
-      }
-    } catch (err) {
-      _didIteratorError5 = true;
-      _iteratorError5 = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion5 && _iterator5["return"]) {
-          _iterator5["return"]();
-        }
-      } finally {
-        if (_didIteratorError5) {
-          throw _iteratorError5;
-        }
-      }
+  const modeDist = useMemo(() => {
+    const ts = collectTasks(lastNDaysKeys(range));
+    const map = {};
+    let total = 0;
+    for (const t of ts) {
+      const sec = t.actualSec || 0;
+      map[t.mode] = (map[t.mode] || 0) + sec;
+      total += sec;
     }
-
-    return { total: total, rows: Object.entries(map).map(function (_ref8) {
-        var _ref82 = _slicedToArray(_ref8, 2);
-
-        var id = _ref82[0];
-        var sec = _ref82[1];
-        return { mode: modeOf(id), sec: sec };
-      }).sort(function (a, b) {
-        return b.sec - a.sec;
-      }) };
+    return {
+      total,
+      rows: Object.entries(map).map(([id, sec]) => ({
+        mode: modeOf(id),
+        sec
+      })).sort((a, b) => b.sec - a.sec)
+    };
   }, [collectTasks, range, modeOf]);
-
-  var accuracy = useMemo(function () {
-    var ts = collectTasks(lastNDaysKeys(range)).filter(function (t) {
-      return t.done && t.estimate > 0 && t.actualSec > 0;
-    });
+  const accuracy = useMemo(() => {
+    const ts = collectTasks(lastNDaysKeys(range)).filter(t => t.done && t.estimate > 0 && t.actualSec > 0);
     if (ts.length === 0) return null;
-    var ratios = ts.map(function (t) {
-      return t.actualSec / 60 / t.estimate;
-    });
-    var avg = ratios.reduce(function (a, r) {
-      return a + r;
-    }, 0) / ratios.length;
-    var over = ts.filter(function (t) {
-      return t.actualSec / 60 > t.estimate;
-    }).length;
-    return { avg: avg, count: ts.length, over: over };
+    const ratios = ts.map(t => t.actualSec / 60 / t.estimate);
+    const avg = ratios.reduce((a, r) => a + r, 0) / ratios.length;
+    const over = ts.filter(t => t.actualSec / 60 > t.estimate).length;
+    return {
+      avg,
+      count: ts.length,
+      over
+    };
   }, [collectTasks, range]);
-
-  var periodLabel = { day: "今日", week: "今週", month: "今月" };
-
-  return React.createElement(
-    "div",
-    { style: { padding: "16px 12px 32px" } },
-    React.createElement(
-      "section",
-      { style: { marginBottom: 24 } },
-      React.createElement(
-        "div",
-        { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 6px 6px" } },
-        React.createElement(
-          "span",
-          { style: { fontSize: 13, fontWeight: 700 } },
-          "目標"
-        ),
-        React.createElement(
-          "button",
-          { onClick: function () {
-              return setGoalModal("new");
-            },
-            style: { border: "1px solid #C6CEDA", background: "#fff", fontSize: 11, borderRadius: 6, padding: "4px 10px", cursor: "pointer", color: "#17222E" } },
-          "＋ 目標を追加"
-        )
-      ),
-      data.goals.length === 0 ? React.createElement(
-        "div",
-        { style: _extends({}, card, { padding: "20px 16px", fontSize: 13, color: "#8595A6", lineHeight: 1.7 }) },
-        "目標を追加すると、モードやキーワードに紐づく時間の使い方を追跡できます。例:「学習に週5時間」「筋トレを週3時間」"
-      ) : React.createElement(
-        "div",
-        { style: _extends({}, card, { overflow: "hidden" }) },
-        data.goals.map(function (g, i) {
-          var actMin = goalProgress(g);
-          var pct = g.targetMin > 0 ? Math.min(1, actMin / g.targetMin) : 0;
-          var gm = g.mode ? modeOf(g.mode) : null;
-          var color = gm && gm.color || "#17222E";
-          var achieved = actMin >= g.targetMin;
-          return React.createElement(
-            "div",
-            { key: g.id, onClick: function () {
-                return setGoalModal(g);
-              },
-              style: { padding: "12px", borderTop: i > 0 ? "1px solid #EDF0F4" : "none", cursor: "pointer" } },
-            React.createElement(
-              "div",
-              { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline" } },
-              React.createElement(
-                "span",
-                { style: { fontSize: 14, fontWeight: 500 } },
-                gm && React.createElement("span", { style: { display: "inline-block", width: 8, height: 8, borderRadius: 4, background: color, marginRight: 6 } }),
-                g.name,
-                achieved && React.createElement(
-                  "span",
-                  { style: { marginLeft: 6, fontSize: 12 } },
-                  "🎯"
-                )
-              ),
-              React.createElement(
-                "span",
-                { style: _extends({}, mono, { fontSize: 11, color: "#8595A6" }) },
-                periodLabel[g.period]
-              )
-            ),
-            React.createElement(
-              "div",
-              { style: { display: "flex", alignItems: "center", gap: 10, marginTop: 8 } },
-              React.createElement(
-                "div",
-                { style: { flex: 1, height: 8, background: "#EDF0F4", borderRadius: 4, overflow: "hidden" } },
-                React.createElement("div", { style: { width: pct * 100 + "%", height: "100%", background: color, transition: "width .4s" } })
-              ),
-              React.createElement(
-                "span",
-                { style: _extends({}, mono, { fontSize: 12, color: achieved ? color : "#5B6B7C", fontWeight: achieved ? 700 : 400, flexShrink: 0 }) },
-                fmtMin(actMin),
-                " / ",
-                fmtMin(g.targetMin)
-              )
-            )
-          );
-        })
-      )
-    ),
-    React.createElement(
-      "div",
-      { style: { display: "flex", gap: 6, padding: "0 6px 12px" } },
-      [[7, "過去7日"], [30, "過去30日"]].map(function (_ref9) {
-        var _ref92 = _slicedToArray(_ref9, 2);
-
-        var n = _ref92[0];
-        var label = _ref92[1];
-        return React.createElement(
-          "button",
-          { key: n, onClick: function () {
-              return setRange(n);
-            }, style: chip(range === n) },
-          label
-        );
-      })
-    ),
-    React.createElement(
-      "section",
-      { style: { marginBottom: 24 } },
-      React.createElement(
-        "div",
-        { style: h },
-        "日別の時間(分)"
-      ),
-      React.createElement(
-        "div",
-        { style: _extends({}, card, { padding: "14px 12px 10px" }) },
-        dailyData.every(function (d) {
-          return d.act === 0 && d.est === 0;
-        }) ? React.createElement(
-          "div",
-          { style: { padding: "20px 12px", fontSize: 13, color: "#8595A6", textAlign: "center" } },
-          "この期間の記録はまだありません。"
-        ) : React.createElement(DailyChart, { rows: dailyData })
-      )
-    ),
-    React.createElement(
-      "section",
-      { style: { marginBottom: 24 } },
-      React.createElement(
-        "div",
-        { style: h },
-        "モード別の時間配分"
-      ),
-      React.createElement(
-        "div",
-        { style: _extends({}, card, { padding: "14px 14px 8px" }) },
-        modeDist.total === 0 ? React.createElement(
-          "div",
-          { style: { padding: "12px 0 18px", fontSize: 13, color: "#8595A6", textAlign: "center" } },
-          "実績のあるタスクがまだありません。"
-        ) : modeDist.rows.map(function (_ref10) {
-          var mode = _ref10.mode;
-          var sec = _ref10.sec;
-
-          var pct = sec / modeDist.total;
-          return React.createElement(
-            "div",
-            { key: mode.id, style: { marginBottom: 12 } },
-            React.createElement(
-              "div",
-              { style: { display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 } },
-              React.createElement(
-                "span",
-                null,
-                React.createElement("span", { style: { display: "inline-block", width: 8, height: 8, borderRadius: 4, background: mode.color, marginRight: 6 } }),
-                mode.label
-              ),
-              React.createElement(
-                "span",
-                { style: _extends({}, mono, { color: "#5B6B7C" }) },
-                fmtDur(sec),
-                "(",
-                Math.round(pct * 100),
-                "%)"
-              )
-            ),
-            React.createElement(
-              "div",
-              { style: { height: 8, background: "#EDF0F4", borderRadius: 4, overflow: "hidden" } },
-              React.createElement("div", { style: { width: pct * 100 + "%", height: "100%", background: mode.color } })
-            )
-          );
-        })
-      )
-    ),
-    React.createElement(
-      "section",
-      null,
-      React.createElement(
-        "div",
-        { style: h },
-        "見積精度"
-      ),
-      React.createElement(
-        "div",
-        { style: _extends({}, card, { padding: "16px 14px" }) },
-        !accuracy ? React.createElement(
-          "div",
-          { style: { fontSize: 13, color: "#8595A6", textAlign: "center" } },
-          "見積と実績が両方あるタスクがまだありません。"
-        ) : React.createElement(
-          "div",
-          { style: { display: "flex", gap: 12 } },
-          React.createElement(Stat, { label: "実績÷見積の平均", value: Math.round(accuracy.avg * 100) + "%",
-            sub: accuracy.avg > 1.1 ? "見積が甘め" : accuracy.avg < 0.9 ? "見積が多め" : "ほぼ正確" }),
-          React.createElement(Stat, { label: "超過したタスク", value: accuracy.over + "/" + accuracy.count + "件",
-            sub: Math.round(accuracy.over / accuracy.count * 100) + "%が見積オーバー" })
-        )
-      )
-    ),
-    goalModal && React.createElement(GoalModal, { goal: goalModal === "new" ? null : goalModal, modes: modes,
-      onClose: function () {
-        return setGoalModal(null);
-      },
-      onSave: function (g) {
-        setData(function (d) {
-          return _extends({}, d, {
-            goals: g.id ? d.goals.map(function (x) {
-              return x.id === g.id ? g : x;
-            }) : [].concat(_toConsumableArray(d.goals), [_extends({}, g, { id: uid() })])
-          });
-        });
-        setGoalModal(null);
-      },
-      onDelete: function (id) {
-        setData(function (d) {
-          return _extends({}, d, { goals: d.goals.filter(function (x) {
-              return x.id !== id;
-            }) });
-        });
-        setGoalModal(null);
-      } })
-  );
+  const periodLabel = {
+    day: "今日",
+    week: "今週",
+    month: "今月"
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px 12px 32px"
+    }
+  }, /*#__PURE__*/React.createElement("section", {
+    style: {
+      marginBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "0 6px 6px"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "目標"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setGoalModal("new"),
+    style: {
+      border: "1px solid #C6CEDA",
+      background: "#fff",
+      fontSize: 11,
+      borderRadius: 6,
+      padding: "4px 10px",
+      cursor: "pointer",
+      color: "#17222E"
+    }
+  }, "＋ 目標を追加")), data.goals.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card,
+      padding: "20px 16px",
+      fontSize: 13,
+      color: "#8595A6",
+      lineHeight: 1.7
+    }
+  }, "目標を追加すると、モードやキーワードに紐づく時間の使い方を追跡できます。例:「学習に週5時間」「筋トレを週3時間」") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card,
+      overflow: "hidden"
+    }
+  }, data.goals.map((g, i) => {
+    const actMin = goalProgress(g);
+    const pct = g.targetMin > 0 ? Math.min(1, actMin / g.targetMin) : 0;
+    const gm = g.mode ? modeOf(g.mode) : null;
+    const color = gm && gm.color || "#17222E";
+    const achieved = actMin >= g.targetMin;
+    return /*#__PURE__*/React.createElement("div", {
+      key: g.id,
+      onClick: () => setGoalModal(g),
+      style: {
+        padding: "12px",
+        borderTop: i > 0 ? "1px solid #EDF0F4" : "none",
+        cursor: "pointer"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 14,
+        fontWeight: 500
+      }
+    }, gm && /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: "inline-block",
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        background: color,
+        marginRight: 6
+      }
+    }), g.name, achieved && /*#__PURE__*/React.createElement("span", {
+      style: {
+        marginLeft: 6,
+        fontSize: 12
+      }
+    }, "🎯")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        ...mono,
+        fontSize: 11,
+        color: "#8595A6"
+      }
+    }, periodLabel[g.period])), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginTop: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        height: 8,
+        background: "#EDF0F4",
+        borderRadius: 4,
+        overflow: "hidden"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: `${pct * 100}%`,
+        height: "100%",
+        background: color,
+        transition: "width .4s"
+      }
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        ...mono,
+        fontSize: 12,
+        color: achieved ? color : "#5B6B7C",
+        fontWeight: achieved ? 700 : 400,
+        flexShrink: 0
+      }
+    }, fmtMin(actMin), " / ", fmtMin(g.targetMin))));
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      padding: "0 6px 12px"
+    }
+  }, [[7, "過去7日"], [30, "過去30日"]].map(([n, label]) => /*#__PURE__*/React.createElement("button", {
+    key: n,
+    onClick: () => setRange(n),
+    style: chip(range === n)
+  }, label))), /*#__PURE__*/React.createElement("section", {
+    style: {
+      marginBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: h
+  }, "日別の時間(分)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card,
+      padding: "14px 12px 10px"
+    }
+  }, dailyData.every(d => d.act === 0 && d.est === 0) ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "20px 12px",
+      fontSize: 13,
+      color: "#8595A6",
+      textAlign: "center"
+    }
+  }, "この期間の記録はまだありません。") : /*#__PURE__*/React.createElement(DailyChart, {
+    rows: dailyData
+  }))), /*#__PURE__*/React.createElement("section", {
+    style: {
+      marginBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: h
+  }, "モード別の時間配分"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card,
+      padding: "14px 14px 8px"
+    }
+  }, modeDist.total === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "12px 0 18px",
+      fontSize: 13,
+      color: "#8595A6",
+      textAlign: "center"
+    }
+  }, "実績のあるタスクがまだありません。") : modeDist.rows.map(({
+    mode,
+    sec
+  }) => {
+    const pct = sec / modeDist.total;
+    return /*#__PURE__*/React.createElement("div", {
+      key: mode.id,
+      style: {
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: 12,
+        marginBottom: 4
+      }
+    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: "inline-block",
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        background: mode.color,
+        marginRight: 6
+      }
+    }), mode.label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        ...mono,
+        color: "#5B6B7C"
+      }
+    }, fmtDur(sec), "(", Math.round(pct * 100), "%)")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: 8,
+        background: "#EDF0F4",
+        borderRadius: 4,
+        overflow: "hidden"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: `${pct * 100}%`,
+        height: "100%",
+        background: mode.color
+      }
+    })));
+  }))), /*#__PURE__*/React.createElement("section", null, /*#__PURE__*/React.createElement("div", {
+    style: h
+  }, "見積精度"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card,
+      padding: "16px 14px"
+    }
+  }, !accuracy ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: "#8595A6",
+      textAlign: "center"
+    }
+  }, "見積と実績が両方あるタスクがまだありません。") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Stat, {
+    label: "実績÷見積の平均",
+    value: `${Math.round(accuracy.avg * 100)}%`,
+    sub: accuracy.avg > 1.1 ? "見積が甘め" : accuracy.avg < 0.9 ? "見積が多め" : "ほぼ正確"
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "超過したタスク",
+    value: `${accuracy.over}/${accuracy.count}件`,
+    sub: `${Math.round(accuracy.over / accuracy.count * 100)}%が見積オーバー`
+  })))), goalModal && /*#__PURE__*/React.createElement(GoalModal, {
+    goal: goalModal === "new" ? null : goalModal,
+    modes: modes,
+    onClose: () => setGoalModal(null),
+    onSave: g => {
+      setData(d => ({
+        ...d,
+        goals: g.id ? d.goals.map(x => x.id === g.id ? g : x) : [...d.goals, {
+          ...g,
+          id: uid()
+        }]
+      }));
+      setGoalModal(null);
+    },
+    onDelete: id => {
+      setData(d => ({
+        ...d,
+        goals: d.goals.filter(x => x.id !== id)
+      }));
+      setGoalModal(null);
+    }
+  }));
 }
-
-function Stat(_ref11) {
-  var label = _ref11.label;
-  var value = _ref11.value;
-  var sub = _ref11.sub;
-
-  return React.createElement(
-    "div",
-    { style: { flex: 1 } },
-    React.createElement(
-      "div",
-      { style: { fontSize: 11, color: "#8595A6" } },
-      label
-    ),
-    React.createElement(
-      "div",
-      { style: _extends({}, mono, { fontSize: 24, fontWeight: 700, marginTop: 2 }) },
-      value
-    ),
-    React.createElement(
-      "div",
-      { style: { fontSize: 11, color: "#5B6B7C", marginTop: 2 } },
-      sub
-    )
-  );
+function Stat({
+  label,
+  value,
+  sub
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6"
+    }
+  }, label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...mono,
+      fontSize: 24,
+      fontWeight: 700,
+      marginTop: 2
+    }
+  }, value), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#5B6B7C",
+      marginTop: 2
+    }
+  }, sub));
 }
 
 // ===== 目標モーダル =====
-function GoalModal(_ref12) {
-  var goal = _ref12.goal;
-  var modes = _ref12.modes;
-  var onClose = _ref12.onClose;
-  var onSave = _ref12.onSave;
-  var onDelete = _ref12.onDelete;
-
-  var _useState12 = useState(goal && goal.name || "");
-
-  var _useState122 = _slicedToArray(_useState12, 2);
-
-  var name = _useState122[0];
-  var setName = _useState122[1];
-
-  var _useState13 = useState(goal && goal.mode || null);
-
-  var _useState132 = _slicedToArray(_useState13, 2);
-
-  var gmode = _useState132[0];
-  var setGmode = _useState132[1];
-
-  var _useState14 = useState(goal && goal.keyword || "");
-
-  var _useState142 = _slicedToArray(_useState14, 2);
-
-  var keyword = _useState142[0];
-  var setKeyword = _useState142[1];
-
-  var _useState15 = useState(goal && goal.targetMin || 300);
-
-  var _useState152 = _slicedToArray(_useState15, 2);
-
-  var targetMin = _useState152[0];
-  var setTargetMin = _useState152[1];
-
-  var _useState16 = useState(goal && goal.period || "week");
-
-  var _useState162 = _slicedToArray(_useState16, 2);
-
-  var period = _useState162[0];
-  var setPeriod = _useState162[1];
-
-  return React.createElement(
-    Modal,
-    { title: goal ? "目標を編集" : "目標を追加", onClose: onClose },
-    React.createElement(
-      Field,
-      { label: "目標名" },
-      React.createElement("input", { value: name, onChange: function (e) {
-          return setName(e.target.value);
-        }, placeholder: "例: 学習に週5時間", style: inputStyle })
-    ),
-    React.createElement(
-      Field,
-      { label: "対象モード(未選択=すべて)" },
-      React.createElement(
-        "div",
-        { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-        React.createElement(
-          "button",
-          { onClick: function () {
-              return setGmode(null);
-            }, style: chip(gmode === null) },
-          "すべて"
-        ),
-        modes.map(function (m) {
-          return React.createElement(
-            "button",
-            { key: m.id, onClick: function () {
-                return setGmode(m.id);
-              },
-              style: _extends({}, chip(gmode === m.id), { borderColor: gmode === m.id ? m.color : "#E1E6EC", background: "#fff", color: gmode === m.id ? m.color : "#5B6B7C", fontWeight: gmode === m.id ? 700 : 400 }) },
-            m.label
-          );
-        })
-      )
-    ),
-    React.createElement(
-      Field,
-      { label: "タスク名キーワード(任意)" },
-      React.createElement("input", { value: keyword, onChange: function (e) {
-          return setKeyword(e.target.value);
-        }, placeholder: "例: 英語(名前に含むタスクだけ集計)", style: inputStyle })
-    ),
-    React.createElement(
-      Field,
-      { label: "期間と目標時間" },
-      React.createElement(
-        "div",
-        { style: { display: "flex", gap: 6, marginBottom: 8 } },
-        [["day", "毎日"], ["week", "毎週"], ["month", "毎月"]].map(function (_ref13) {
-          var _ref132 = _slicedToArray(_ref13, 2);
-
-          var p = _ref132[0];
-          var label = _ref132[1];
-          return React.createElement(
-            "button",
-            { key: p, onClick: function () {
-                return setPeriod(p);
-              }, style: chip(period === p) },
-            label
-          );
-        })
-      ),
-      React.createElement(
-        "div",
-        { style: { display: "flex", alignItems: "center", gap: 8 } },
-        React.createElement("input", { type: "number", value: targetMin, onChange: function (e) {
-            return setTargetMin(Number(e.target.value) || 0);
-          }, style: _extends({}, inputStyle, { width: 100, textAlign: "center" }) }),
-        React.createElement(
-          "span",
-          { style: { fontSize: 13, color: "#5B6B7C" } },
-          "分(",
-          fmtMin(targetMin),
-          ")"
-        )
-      )
-    ),
-    React.createElement(
-      "div",
-      { style: { display: "flex", gap: 8, marginTop: 8 } },
-      goal && React.createElement(
-        "button",
-        { onClick: function () {
-            return onDelete(goal.id);
-          }, style: { flex: 1, padding: 13, borderRadius: 10, border: "1px solid #FCA5A5", background: "#fff", color: "#DC2626", fontSize: 14, cursor: "pointer" } },
-        "削除"
-      ),
-      React.createElement(
-        "button",
-        { disabled: !name.trim() || targetMin <= 0,
-          onClick: function () {
-            return onSave({ id: goal && goal.id, name: name.trim(), mode: gmode, keyword: keyword.trim() || null, targetMin: targetMin, period: period });
-          },
-          style: { flex: 2, padding: 13, borderRadius: 10, border: "none", background: name.trim() && targetMin > 0 ? "#17222E" : "#C6CEDA", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" } },
-        "保存"
-      )
-    )
-  );
+function GoalModal({
+  goal,
+  modes,
+  onClose,
+  onSave,
+  onDelete
+}) {
+  const [name, setName] = useState(goal && goal.name || "");
+  const [gmode, setGmode] = useState(goal && goal.mode || null);
+  const [keyword, setKeyword] = useState(goal && goal.keyword || "");
+  const [targetMin, setTargetMin] = useState(goal && goal.targetMin || 300);
+  const [period, setPeriod] = useState(goal && goal.period || "week");
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: goal ? "目標を編集" : "目標を追加",
+    onClose: onClose
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "目標名"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: name,
+    onChange: e => setName(e.target.value),
+    placeholder: "例: 学習に週5時間",
+    style: inputStyle
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "対象モード(未選択=すべて)"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setGmode(null),
+    style: chip(gmode === null)
+  }, "すべて"), modes.map(m => /*#__PURE__*/React.createElement("button", {
+    key: m.id,
+    onClick: () => setGmode(m.id),
+    style: {
+      ...chip(gmode === m.id),
+      borderColor: gmode === m.id ? m.color : "#E1E6EC",
+      background: "#fff",
+      color: gmode === m.id ? m.color : "#5B6B7C",
+      fontWeight: gmode === m.id ? 700 : 400
+    }
+  }, m.label)))), /*#__PURE__*/React.createElement(Field, {
+    label: "タスク名キーワード(任意)"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: keyword,
+    onChange: e => setKeyword(e.target.value),
+    placeholder: "例: 英語(名前に含むタスクだけ集計)",
+    style: inputStyle
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "期間と目標時間"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      marginBottom: 8
+    }
+  }, [["day", "毎日"], ["week", "毎週"], ["month", "毎月"]].map(([p, label]) => /*#__PURE__*/React.createElement("button", {
+    key: p,
+    onClick: () => setPeriod(p),
+    style: chip(period === p)
+  }, label))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: targetMin,
+    onChange: e => setTargetMin(Number(e.target.value) || 0),
+    style: {
+      ...inputStyle,
+      width: 100,
+      textAlign: "center"
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#5B6B7C"
+    }
+  }, "分(", fmtMin(targetMin), ")"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginTop: 8
+    }
+  }, goal && /*#__PURE__*/React.createElement("button", {
+    onClick: () => onDelete(goal.id),
+    style: {
+      flex: 1,
+      padding: 13,
+      borderRadius: 10,
+      border: "1px solid #FCA5A5",
+      background: "#fff",
+      color: "#DC2626",
+      fontSize: 14,
+      cursor: "pointer"
+    }
+  }, "削除"), /*#__PURE__*/React.createElement("button", {
+    disabled: !name.trim() || targetMin <= 0,
+    onClick: () => onSave({
+      id: goal && goal.id,
+      name: name.trim(),
+      mode: gmode,
+      keyword: keyword.trim() || null,
+      targetMin,
+      period
+    }),
+    style: {
+      flex: 2,
+      padding: 13,
+      borderRadius: 10,
+      border: "none",
+      background: name.trim() && targetMin > 0 ? "#17222E" : "#C6CEDA",
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "保存")));
 }
 
 // ===== 設定ビュー =====
-function SettingsView(_ref14) {
-  var data = _ref14.data;
-  var setData = _ref14.setData;
-  var onExportDate = _ref14.onExportDate;
-  var onBackup = _ref14.onBackup;
-  var onImport = _ref14.onImport;
-
-  var sections = data.sections;
-  var modes = data.modes;
-
-  var _useState17 = useState({ label: "", range: "" });
-
-  var _useState172 = _slicedToArray(_useState17, 2);
-
-  var newSec = _useState172[0];
-  var setNewSec = _useState172[1];
-
-  var _useState18 = useState({ label: "", color: COLOR_PALETTE[0] });
-
-  var _useState182 = _slicedToArray(_useState18, 2);
-
-  var newMode = _useState182[0];
-  var setNewMode = _useState182[1];
-
-  var _useState19 = useState(null);
-
-  var _useState192 = _slicedToArray(_useState19, 2);
-
-  var pickColor = _useState192[0];
-  var setPickColor = _useState192[1];
-
-  var _useState20 = useState(todayKey());
-
-  var _useState202 = _slicedToArray(_useState20, 2);
-
-  var exportDate = _useState202[0];
-  var setExportDate = _useState202[1];
-
-  var updSections = function updSections(fn) {
-    return setData(function (d) {
-      return _extends({}, d, { sections: fn(d.sections) });
-    });
+function SettingsView({
+  data,
+  setData,
+  onExportDate,
+  onBackup,
+  onImport
+}) {
+  const sections = data.sections;
+  const modes = data.modes;
+  const [newSec, setNewSec] = useState({
+    label: "",
+    range: ""
+  });
+  const [newMode, setNewMode] = useState({
+    label: "",
+    color: COLOR_PALETTE[0]
+  });
+  const [pickColor, setPickColor] = useState(null);
+  const [exportDate, setExportDate] = useState(todayKey());
+  const updSections = fn => setData(d => ({
+    ...d,
+    sections: fn(d.sections)
+  }));
+  const updModes = fn => setData(d => ({
+    ...d,
+    modes: fn(d.modes)
+  }));
+  const moveSec = (i, dir) => updSections(ss => {
+    const j = i + dir;
+    if (j < 0 || j >= ss.length) return ss;
+    const arr = [...ss];
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    return arr;
+  });
+  const card = {
+    background: "#fff",
+    borderRadius: 12,
+    overflow: "hidden",
+    boxShadow: "0 1px 2px rgba(23,34,46,.06)"
   };
-  var updModes = function updModes(fn) {
-    return setData(function (d) {
-      return _extends({}, d, { modes: fn(d.modes) });
-    });
+  const h = {
+    fontSize: 13,
+    fontWeight: 700,
+    padding: "0 6px 6px"
   };
-
-  var moveSec = function moveSec(i, dir) {
-    return updSections(function (ss) {
-      var j = i + dir;
-      if (j < 0 || j >= ss.length) return ss;
-      var arr = [].concat(_toConsumableArray(ss));
-      var _ref15 = [arr[j], arr[i]];
-      arr[i] = _ref15[0];
-      arr[j] = _ref15[1];
-
-      return arr;
-    });
+  const smallInput = {
+    ...inputStyle,
+    padding: "8px 10px",
+    fontSize: 13
   };
-
-  var card = { background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(23,34,46,.06)" };
-  var h = { fontSize: 13, fontWeight: 700, padding: "0 6px 6px" };
-  var smallInput = _extends({}, inputStyle, { padding: "8px 10px", fontSize: 13 });
-
-  return React.createElement(
-    "div",
-    { style: { padding: "16px 12px 32px" } },
-    React.createElement(
-      "section",
-      { style: { marginBottom: 24 } },
-      React.createElement(
-        "div",
-        { style: h },
-        "Markdownエクスポート"
-      ),
-      React.createElement(
-        "div",
-        { style: _extends({}, card, { padding: 12 }) },
-        React.createElement(
-          "div",
-          { style: { display: "flex", gap: 8 } },
-          React.createElement("input", { type: "date", value: exportDate, onChange: function (e) {
-              return setExportDate(e.target.value);
-            },
-            style: _extends({}, smallInput, { flex: 1 }, mono) }),
-          React.createElement(
-            "button",
-            { onClick: function () {
-                return exportDate && onExportDate(exportDate);
-              },
-              style: { padding: "8px 16px", borderRadius: 8, border: "none", background: "#17222E", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 } },
-            "出力"
-          )
-        ),
-        React.createElement(
-          "p",
-          { style: { fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 } },
-          "指定した日のログをDataview対応frontmatter付きで出力します。ログタブの各日付のMDボタンからも出せます。"
-        )
-      )
-    ),
-    React.createElement(
-      "section",
-      { style: { marginBottom: 24 } },
-      React.createElement(
-        "div",
-        { style: h },
-        "バックアップ"
-      ),
-      React.createElement(
-        "div",
-        { style: _extends({}, card, { padding: 12 }) },
-        React.createElement(
-          "div",
-          { style: { display: "flex", gap: 8 } },
-          React.createElement(
-            "button",
-            { onClick: onBackup,
-              style: { flex: 1, padding: 12, borderRadius: 10, border: "none", background: "#17222E", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" } },
-            "バックアップを出力"
-          ),
-          React.createElement(
-            "button",
-            { onClick: onImport,
-              style: { flex: 1, padding: 12, borderRadius: 10, border: "1.5px solid #17222E", background: "#fff", color: "#17222E", fontSize: 13, fontWeight: 700, cursor: "pointer" } },
-            "取り込み"
-          )
-        ),
-        React.createElement(
-          "p",
-          { style: { fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 } },
-          "データはこの端末のブラウザ内に保存されています。ブラウザのデータ消去で消えるため、定期的にバックアップをObsidianやDropboxに保存してください。"
-        )
-      )
-    ),
-    React.createElement(
-      "section",
-      { style: { marginBottom: 24 } },
-      React.createElement(
-        "div",
-        { style: h },
-        "セクション"
-      ),
-      React.createElement(
-        "div",
-        { style: card },
-        sections.map(function (s, i) {
-          return React.createElement(
-            "div",
-            { key: s.id, style: { display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderTop: i > 0 ? "1px solid #EDF0F4" : "none" } },
-            React.createElement(
-              "div",
-              { style: { display: "flex", flexDirection: "column", gap: 2 } },
-              React.createElement(
-                "button",
-                { onClick: function () {
-                    return moveSec(i, -1);
-                  }, style: arrowBtn, "aria-label": "上へ" },
-                "▲"
-              ),
-              React.createElement(
-                "button",
-                { onClick: function () {
-                    return moveSec(i, 1);
-                  }, style: arrowBtn, "aria-label": "下へ" },
-                "▼"
-              )
-            ),
-            React.createElement("input", { value: s.label,
-              onChange: function (e) {
-                return updSections(function (ss) {
-                  return ss.map(function (x) {
-                    return x.id === s.id ? _extends({}, x, { label: e.target.value }) : x;
-                  });
-                });
-              },
-              style: _extends({}, smallInput, { width: 72, flexShrink: 0 }) }),
-            React.createElement("input", { value: s.range, placeholder: "時間帯",
-              onChange: function (e) {
-                return updSections(function (ss) {
-                  return ss.map(function (x) {
-                    return x.id === s.id ? _extends({}, x, { range: e.target.value }) : x;
-                  });
-                });
-              },
-              style: _extends({}, smallInput, { flex: 1 }, mono) }),
-            React.createElement(
-              "button",
-              { disabled: sections.length <= 1,
-                onClick: function () {
-                  return updSections(function (ss) {
-                    return ss.filter(function (x) {
-                      return x.id !== s.id;
-                    });
-                  });
-                },
-                style: { border: "none", background: "none", color: sections.length <= 1 ? "#E1E6EC" : "#C6CEDA", fontSize: 13, cursor: "pointer", flexShrink: 0 } },
-              "削除"
-            )
-          );
-        }),
-        React.createElement(
-          "div",
-          { style: { display: "flex", gap: 6, padding: "10px", borderTop: "1px solid #EDF0F4", background: "#F7F9FB" } },
-          React.createElement("input", { value: newSec.label, placeholder: "名前", onChange: function (e) {
-              return setNewSec(_extends({}, newSec, { label: e.target.value }));
-            }, style: _extends({}, smallInput, { width: 90 }) }),
-          React.createElement("input", { value: newSec.range, placeholder: "例 9:00–12:00", onChange: function (e) {
-              return setNewSec(_extends({}, newSec, { range: e.target.value }));
-            }, style: _extends({}, smallInput, { flex: 1 }) }),
-          React.createElement(
-            "button",
-            { disabled: !newSec.label.trim(),
-              onClick: function () {
-                updSections(function (ss) {
-                  return [].concat(_toConsumableArray(ss), [{ id: uid(), label: newSec.label.trim(), range: newSec.range.trim() }]);
-                });setNewSec({ label: "", range: "" });
-              },
-              style: { padding: "8px 14px", borderRadius: 8, border: "none", background: newSec.label.trim() ? "#17222E" : "#C6CEDA", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 } },
-            "追加"
-          )
-        )
-      ),
-      React.createElement(
-        "p",
-        { style: { fontSize: 11, color: "#8595A6", padding: "8px 6px 0", lineHeight: 1.7 } },
-        "セクションを削除しても、そのセクションにあったタスクは先頭のセクションに表示されます。"
-      )
-    ),
-    React.createElement(
-      "section",
-      null,
-      React.createElement(
-        "div",
-        { style: h },
-        "モード"
-      ),
-      React.createElement(
-        "div",
-        { style: card },
-        modes.map(function (m, i) {
-          return React.createElement(
-            "div",
-            { key: m.id, style: { borderTop: i > 0 ? "1px solid #EDF0F4" : "none" } },
-            React.createElement(
-              "div",
-              { style: { display: "flex", alignItems: "center", gap: 8, padding: "8px 10px" } },
-              React.createElement("button", { onClick: function () {
-                  return setPickColor(pickColor === m.id ? null : m.id);
-                }, "aria-label": "色を変更",
-                style: { width: 22, height: 22, borderRadius: 11, background: m.color, border: "2px solid #fff", boxShadow: "0 0 0 1px #E1E6EC", cursor: "pointer", flexShrink: 0 } }),
-              React.createElement("input", { value: m.label,
-                onChange: function (e) {
-                  return updModes(function (ms) {
-                    return ms.map(function (x) {
-                      return x.id === m.id ? _extends({}, x, { label: e.target.value }) : x;
-                    });
-                  });
-                },
-                style: _extends({}, smallInput, { flex: 1 }) }),
-              React.createElement(
-                "button",
-                { disabled: modes.length <= 1,
-                  onClick: function () {
-                    return updModes(function (ms) {
-                      return ms.filter(function (x) {
-                        return x.id !== m.id;
-                      });
-                    });
-                  },
-                  style: { border: "none", background: "none", color: modes.length <= 1 ? "#E1E6EC" : "#C6CEDA", fontSize: 13, cursor: "pointer", flexShrink: 0 } },
-                "削除"
-              )
-            ),
-            pickColor === m.id && React.createElement(
-              "div",
-              { style: { display: "flex", gap: 8, flexWrap: "wrap", padding: "0 10px 12px 40px" } },
-              COLOR_PALETTE.map(function (c) {
-                return React.createElement("button", { key: c, onClick: function () {
-                    updModes(function (ms) {
-                      return ms.map(function (x) {
-                        return x.id === m.id ? _extends({}, x, { color: c }) : x;
-                      });
-                    });setPickColor(null);
-                  },
-                  "aria-label": "色 " + c,
-                  style: { width: 26, height: 26, borderRadius: 13, background: c, border: m.color === c ? "3px solid #17222E" : "2px solid #fff", boxShadow: "0 0 0 1px #E1E6EC", cursor: "pointer" } });
-              })
-            )
-          );
-        }),
-        React.createElement(
-          "div",
-          { style: { display: "flex", gap: 6, padding: "10px", borderTop: "1px solid #EDF0F4", background: "#F7F9FB", alignItems: "center" } },
-          React.createElement("button", { onClick: function () {
-              var idx = (COLOR_PALETTE.indexOf(newMode.color) + 1) % COLOR_PALETTE.length;setNewMode(_extends({}, newMode, { color: COLOR_PALETTE[idx] }));
-            },
-            "aria-label": "色を切り替え",
-            style: { width: 22, height: 22, borderRadius: 11, background: newMode.color, border: "2px solid #fff", boxShadow: "0 0 0 1px #E1E6EC", cursor: "pointer", flexShrink: 0 } }),
-          React.createElement("input", { value: newMode.label, placeholder: "モード名", onChange: function (e) {
-              return setNewMode(_extends({}, newMode, { label: e.target.value }));
-            }, style: _extends({}, smallInput, { flex: 1 }) }),
-          React.createElement(
-            "button",
-            { disabled: !newMode.label.trim(),
-              onClick: function () {
-                updModes(function (ms) {
-                  return [].concat(_toConsumableArray(ms), [{ id: uid(), label: newMode.label.trim(), color: newMode.color }]);
-                });setNewMode({ label: "", color: COLOR_PALETTE[0] });
-              },
-              style: { padding: "8px 14px", borderRadius: 8, border: "none", background: newMode.label.trim() ? "#17222E" : "#C6CEDA", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 } },
-            "追加"
-          )
-        )
-      ),
-      React.createElement(
-        "p",
-        { style: { fontSize: 11, color: "#8595A6", padding: "8px 6px 0", lineHeight: 1.7 } },
-        "色の丸をタップするとパレットから色を選べます。"
-      )
-    )
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px 12px 32px"
+    }
+  }, /*#__PURE__*/React.createElement("section", {
+    style: {
+      marginBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: h
+  }, "Markdownエクスポート"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card,
+      padding: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: exportDate,
+    onChange: e => setExportDate(e.target.value),
+    style: {
+      ...smallInput,
+      flex: 1,
+      ...mono
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => exportDate && onExportDate(exportDate),
+    style: {
+      padding: "8px 16px",
+      borderRadius: 8,
+      border: "none",
+      background: "#17222E",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }, "出力")), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      margin: "10px 2px 0",
+      lineHeight: 1.7
+    }
+  }, "指定した日のログをDataview対応frontmatter付きで出力します。ログタブの各日付のMDボタンからも出せます。"))), /*#__PURE__*/React.createElement("section", {
+    style: {
+      marginBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: h
+  }, "バックアップ"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card,
+      padding: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onBackup,
+    style: {
+      flex: 1,
+      padding: 12,
+      borderRadius: 10,
+      border: "none",
+      background: "#17222E",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "バックアップを出力"), /*#__PURE__*/React.createElement("button", {
+    onClick: onImport,
+    style: {
+      flex: 1,
+      padding: 12,
+      borderRadius: 10,
+      border: "1.5px solid #17222E",
+      background: "#fff",
+      color: "#17222E",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "取り込み")), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      margin: "10px 2px 0",
+      lineHeight: 1.7
+    }
+  }, "データはこの端末のブラウザ内に保存されています。ブラウザのデータ消去で消えるため、定期的にバックアップをObsidianやDropboxに保存してください。"))), /*#__PURE__*/React.createElement("section", {
+    style: {
+      marginBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: h
+  }, "セクション"), /*#__PURE__*/React.createElement("div", {
+    style: card
+  }, sections.map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: s.id,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      padding: "8px 10px",
+      borderTop: i > 0 ? "1px solid #EDF0F4" : "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 2
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => moveSec(i, -1),
+    style: arrowBtn,
+    "aria-label": "上へ"
+  }, "▲"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => moveSec(i, 1),
+    style: arrowBtn,
+    "aria-label": "下へ"
+  }, "▼")), /*#__PURE__*/React.createElement("input", {
+    value: s.label,
+    onChange: e => updSections(ss => ss.map(x => x.id === s.id ? {
+      ...x,
+      label: e.target.value
+    } : x)),
+    style: {
+      ...smallInput,
+      width: 72,
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    value: s.range,
+    placeholder: "時間帯",
+    onChange: e => updSections(ss => ss.map(x => x.id === s.id ? {
+      ...x,
+      range: e.target.value
+    } : x)),
+    style: {
+      ...smallInput,
+      flex: 1,
+      ...mono
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    disabled: sections.length <= 1,
+    onClick: () => updSections(ss => ss.filter(x => x.id !== s.id)),
+    style: {
+      border: "none",
+      background: "none",
+      color: sections.length <= 1 ? "#E1E6EC" : "#C6CEDA",
+      fontSize: 13,
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }, "削除"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      padding: "10px",
+      borderTop: "1px solid #EDF0F4",
+      background: "#F7F9FB"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    value: newSec.label,
+    placeholder: "名前",
+    onChange: e => setNewSec({
+      ...newSec,
+      label: e.target.value
+    }),
+    style: {
+      ...smallInput,
+      width: 90
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    value: newSec.range,
+    placeholder: "例 9:00–12:00",
+    onChange: e => setNewSec({
+      ...newSec,
+      range: e.target.value
+    }),
+    style: {
+      ...smallInput,
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    disabled: !newSec.label.trim(),
+    onClick: () => {
+      updSections(ss => [...ss, {
+        id: uid(),
+        label: newSec.label.trim(),
+        range: newSec.range.trim()
+      }]);
+      setNewSec({
+        label: "",
+        range: ""
+      });
+    },
+    style: {
+      padding: "8px 14px",
+      borderRadius: 8,
+      border: "none",
+      background: newSec.label.trim() ? "#17222E" : "#C6CEDA",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }, "追加"))), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      padding: "8px 6px 0",
+      lineHeight: 1.7
+    }
+  }, "セクションを削除しても、そのセクションにあったタスクは先頭のセクションに表示されます。")), /*#__PURE__*/React.createElement("section", null, /*#__PURE__*/React.createElement("div", {
+    style: h
+  }, "モード"), /*#__PURE__*/React.createElement("div", {
+    style: card
+  }, modes.map((m, i) => /*#__PURE__*/React.createElement("div", {
+    key: m.id,
+    style: {
+      borderTop: i > 0 ? "1px solid #EDF0F4" : "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "8px 10px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setPickColor(pickColor === m.id ? null : m.id),
+    "aria-label": "色を変更",
+    style: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      background: m.color,
+      border: "2px solid #fff",
+      boxShadow: "0 0 0 1px #E1E6EC",
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    value: m.label,
+    onChange: e => updModes(ms => ms.map(x => x.id === m.id ? {
+      ...x,
+      label: e.target.value
+    } : x)),
+    style: {
+      ...smallInput,
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    disabled: modes.length <= 1,
+    onClick: () => updModes(ms => ms.filter(x => x.id !== m.id)),
+    style: {
+      border: "none",
+      background: "none",
+      color: modes.length <= 1 ? "#E1E6EC" : "#C6CEDA",
+      fontSize: 13,
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }, "削除")), pickColor === m.id && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      flexWrap: "wrap",
+      padding: "0 10px 12px 40px"
+    }
+  }, COLOR_PALETTE.map(c => /*#__PURE__*/React.createElement("button", {
+    key: c,
+    onClick: () => {
+      updModes(ms => ms.map(x => x.id === m.id ? {
+        ...x,
+        color: c
+      } : x));
+      setPickColor(null);
+    },
+    "aria-label": "色 " + c,
+    style: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      background: c,
+      border: m.color === c ? "3px solid #17222E" : "2px solid #fff",
+      boxShadow: "0 0 0 1px #E1E6EC",
+      cursor: "pointer"
+    }
+  }))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      padding: "10px",
+      borderTop: "1px solid #EDF0F4",
+      background: "#F7F9FB",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      const idx = (COLOR_PALETTE.indexOf(newMode.color) + 1) % COLOR_PALETTE.length;
+      setNewMode({
+        ...newMode,
+        color: COLOR_PALETTE[idx]
+      });
+    },
+    "aria-label": "色を切り替え",
+    style: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      background: newMode.color,
+      border: "2px solid #fff",
+      boxShadow: "0 0 0 1px #E1E6EC",
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    value: newMode.label,
+    placeholder: "モード名",
+    onChange: e => setNewMode({
+      ...newMode,
+      label: e.target.value
+    }),
+    style: {
+      ...smallInput,
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    disabled: !newMode.label.trim(),
+    onClick: () => {
+      updModes(ms => [...ms, {
+        id: uid(),
+        label: newMode.label.trim(),
+        color: newMode.color
+      }]);
+      setNewMode({
+        label: "",
+        color: COLOR_PALETTE[0]
+      });
+    },
+    style: {
+      padding: "8px 14px",
+      borderRadius: 8,
+      border: "none",
+      background: newMode.label.trim() ? "#17222E" : "#C6CEDA",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }, "追加"))), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      padding: "8px 6px 0",
+      lineHeight: 1.7
+    }
+  }, "色の丸をタップするとパレットから色を選べます。")));
 }
 
 // ===== バックアップ出力モーダル =====
-function BackupModal(_ref16) {
-  var _this2 = this;
-
-  var data = _ref16.data;
-  var onClose = _ref16.onClose;
-
-  var json = useMemo(function () {
-    return JSON.stringify(_extends({}, data, { _exportedAt: new Date().toISOString(), _app: "taskchute-mobile" }), null, 2);
-  }, [data]);
-
-  var _useState21 = useState(false);
-
-  var _useState212 = _slicedToArray(_useState21, 2);
-
-  var copied = _useState212[0];
-  var setCopied = _useState212[1];
-
-  var taRef = useRef(null);
-
-  var copy = function copy() {
-    return regeneratorRuntime.async(function copy$(context$2$0) {
-      while (1) switch (context$2$0.prev = context$2$0.next) {
-        case 0:
-          context$2$0.prev = 0;
-          context$2$0.next = 3;
-          return regeneratorRuntime.awrap(navigator.clipboard.writeText(json));
-
-        case 3:
-          setCopied(true);
-          setTimeout(function () {
-            return setCopied(false);
-          }, 2000);
-          context$2$0.next = 10;
-          break;
-
-        case 7:
-          context$2$0.prev = 7;
-          context$2$0.t0 = context$2$0["catch"](0);
-
-          if (taRef.current) {
-            taRef.current.focus();taRef.current.select();
-          }
-
-        case 10:
-        case "end":
-          return context$2$0.stop();
-      }
-    }, null, _this2, [[0, 7]]);
-  };
-
-  var download = function download() {
+function BackupModal({
+  data,
+  onClose
+}) {
+  const json = useMemo(() => JSON.stringify({
+    ...data,
+    _exportedAt: new Date().toISOString(),
+    _app: "taskchute-mobile"
+  }, null, 2), [data]);
+  const [copied, setCopied] = useState(false);
+  const taRef = useRef(null);
+  const copy = async () => {
     try {
-      var blob = new Blob([json], { type: "application/json" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
+      await navigator.clipboard.writeText(json);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      if (taRef.current) {
+        taRef.current.focus();
+        taRef.current.select();
+      }
+    }
+  };
+  const download = () => {
+    try {
+      const blob = new Blob([json], {
+        type: "application/json"
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
       a.href = url;
-      a.download = "taskchute-backup-" + todayKey() + ".json";
+      a.download = `taskchute-backup-${todayKey()}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -2343,501 +2321,520 @@ function BackupModal(_ref16) {
       copy();
     }
   };
-
-  return React.createElement(
-    Modal,
-    { title: "バックアップを出力", onClose: onClose },
-    React.createElement("textarea", { ref: taRef, readOnly: true, value: json, rows: 10,
-      style: _extends({}, inputStyle, mono, { fontSize: 11, resize: "vertical", lineHeight: 1.5 }) }),
-    React.createElement(
-      "div",
-      { style: { display: "flex", gap: 8, marginTop: 10 } },
-      React.createElement(
-        "button",
-        { onClick: copy,
-          style: { flex: 1, padding: 13, borderRadius: 10, border: "none", background: copied ? "#0D9488" : "#17222E", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" } },
-        copied ? "コピーしました ✓" : "コピー"
-      ),
-      React.createElement(
-        "button",
-        { onClick: download,
-          style: { flex: 1, padding: 13, borderRadius: 10, border: "1.5px solid #17222E", background: "#fff", color: "#17222E", fontSize: 13, fontWeight: 700, cursor: "pointer" } },
-        "ファイル保存"
-      )
-    ),
-    React.createElement(
-      "p",
-      { style: { fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 } },
-      "このJSONをObsidianのvaultやDropboxに保存しておけば、「取り込み」からいつでも復元できます。"
-    )
-  );
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: "バックアップを出力",
+    onClose: onClose
+  }, /*#__PURE__*/React.createElement("textarea", {
+    ref: taRef,
+    readOnly: true,
+    value: json,
+    rows: 10,
+    style: {
+      ...inputStyle,
+      ...mono,
+      fontSize: 11,
+      resize: "vertical",
+      lineHeight: 1.5
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: copy,
+    style: {
+      flex: 1,
+      padding: 13,
+      borderRadius: 10,
+      border: "none",
+      background: copied ? "#0D9488" : "#17222E",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, copied ? "コピーしました ✓" : "コピー"), /*#__PURE__*/React.createElement("button", {
+    onClick: download,
+    style: {
+      flex: 1,
+      padding: 13,
+      borderRadius: 10,
+      border: "1.5px solid #17222E",
+      background: "#fff",
+      color: "#17222E",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "ファイル保存")), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      margin: "10px 2px 0",
+      lineHeight: 1.7
+    }
+  }, "このJSONをObsidianのvaultやDropboxに保存しておけば、「取り込み」からいつでも復元できます。"));
 }
 
 // ===== バックアップ取り込みモーダル =====
-function ImportModal(_ref17) {
-  var onClose = _ref17.onClose;
-  var onImport = _ref17.onImport;
-
-  var _useState22 = useState("");
-
-  var _useState222 = _slicedToArray(_useState22, 2);
-
-  var text = _useState222[0];
-  var setText = _useState222[1];
-
-  var _useState23 = useState("");
-
-  var _useState232 = _slicedToArray(_useState23, 2);
-
-  var error = _useState232[0];
-  var setError = _useState232[1];
-
-  var _useState24 = useState(null);
-
-  var _useState242 = _slicedToArray(_useState24, 2);
-
-  var preview = _useState242[0];
-  var setPreview = _useState242[1];
-
-  var check = function check(v) {
+function ImportModal({
+  onClose,
+  onImport
+}) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  const [preview, setPreview] = useState(null);
+  const check = v => {
     setText(v);
     setError("");
     setPreview(null);
     if (!v.trim()) return;
     try {
-      var d = JSON.parse(v);
+      const d = JSON.parse(v);
       if (typeof d !== "object" || d === null || !d.days && !d.routines) {
         setError("このアプリのバックアップ形式ではないようです。");
         return;
       }
-      var dayCount = Object.keys(d.days || {}).length;
-      var taskCount = Object.values(d.days || {}).reduce(function (a, day) {
-        return a + (day.tasks && day.tasks.length || 0);
-      }, 0);
-      setPreview({ d: d, dayCount: dayCount, taskCount: taskCount, routines: (d.routines || []).length, goals: (d.goals || []).length, exportedAt: d._exportedAt });
+      const dayCount = Object.keys(d.days || {}).length;
+      const taskCount = Object.values(d.days || {}).reduce((a, day) => a + (day.tasks && day.tasks.length || 0), 0);
+      setPreview({
+        d,
+        dayCount,
+        taskCount,
+        routines: (d.routines || []).length,
+        goals: (d.goals || []).length,
+        exportedAt: d._exportedAt
+      });
     } catch (e) {
       setError("JSONの形式が正しくありません。全文をコピーできているか確認してください。");
     }
   };
-
-  return React.createElement(
-    Modal,
-    { title: "バックアップを取り込み", onClose: onClose },
-    React.createElement(
-      Field,
-      { label: "バックアップJSONを貼り付け" },
-      React.createElement("textarea", { value: text, onChange: function (e) {
-          return check(e.target.value);
-        }, rows: 8, placeholder: "{\"routines\": [...], \"days\": {...}}",
-        style: _extends({}, inputStyle, mono, { fontSize: 11, resize: "vertical", lineHeight: 1.5 }) })
-    ),
-    error && React.createElement(
-      "p",
-      { style: { fontSize: 12, color: "#DC2626", margin: "0 2px 10px" } },
-      error
-    ),
-    preview && React.createElement(
-      "div",
-      { style: { background: "#F0FBFA", border: "1px solid #99E5DC", borderRadius: 10, padding: "10px 12px", fontSize: 12, lineHeight: 1.8, marginBottom: 10 } },
-      "記録日数 ",
-      preview.dayCount,
-      "日 ・ タスク ",
-      preview.taskCount,
-      "件 ・ ルーチン ",
-      preview.routines,
-      "件 ・ 目標 ",
-      preview.goals,
-      "件",
-      preview.exportedAt && React.createElement(
-        React.Fragment,
-        null,
-        React.createElement("br", null),
-        "出力日時: ",
-        preview.exportedAt.slice(0, 16).replace("T", " ")
-      )
-    ),
-    React.createElement(
-      "button",
-      { disabled: !preview,
-        onClick: function () {
-          return preview && onImport(preview.d);
-        },
-        style: { width: "100%", padding: 14, borderRadius: 10, border: "none", background: preview ? "#DC2626" : "#C6CEDA", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" } },
-      "取り込む(現在のデータをすべて上書き)"
-    ),
-    React.createElement(
-      "p",
-      { style: { fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 } },
-      "取り込みは上書きです。心配な場合は先に現在のデータをバックアップ出力してください。"
-    )
-  );
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: "バックアップを取り込み",
+    onClose: onClose
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "バックアップJSONを貼り付け"
+  }, /*#__PURE__*/React.createElement("textarea", {
+    value: text,
+    onChange: e => check(e.target.value),
+    rows: 8,
+    placeholder: "{\"routines\": [...], \"days\": {...}}",
+    style: {
+      ...inputStyle,
+      ...mono,
+      fontSize: 11,
+      resize: "vertical",
+      lineHeight: 1.5
+    }
+  })), error && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: "#DC2626",
+      margin: "0 2px 10px"
+    }
+  }, error), preview && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#F0FBFA",
+      border: "1px solid #99E5DC",
+      borderRadius: 10,
+      padding: "10px 12px",
+      fontSize: 12,
+      lineHeight: 1.8,
+      marginBottom: 10
+    }
+  }, "記録日数 ", preview.dayCount, "日 ・ タスク ", preview.taskCount, "件 ・ ルーチン ", preview.routines, "件 ・ 目標 ", preview.goals, "件", preview.exportedAt && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("br", null), "出力日時: ", preview.exportedAt.slice(0, 16).replace("T", " "))), /*#__PURE__*/React.createElement("button", {
+    disabled: !preview,
+    onClick: () => preview && onImport(preview.d),
+    style: {
+      width: "100%",
+      padding: 14,
+      borderRadius: 10,
+      border: "none",
+      background: preview ? "#DC2626" : "#C6CEDA",
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "取り込む(現在のデータをすべて上書き)"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      margin: "10px 2px 0",
+      lineHeight: 1.7
+    }
+  }, "取り込みは上書きです。心配な場合は先に現在のデータをバックアップ出力してください。"));
 }
 
 // ===== エクスポートモーダル =====
-function ExportModal(_ref18) {
-  var _this3 = this;
-
-  var title = _ref18.title;
-  var md = _ref18.md;
-  var onClose = _ref18.onClose;
-
-  var _useState25 = useState(false);
-
-  var _useState252 = _slicedToArray(_useState25, 2);
-
-  var copied = _useState252[0];
-  var setCopied = _useState252[1];
-
-  var taRef = useRef(null);
-  var copy = function copy() {
-    return regeneratorRuntime.async(function copy$(context$2$0) {
-      while (1) switch (context$2$0.prev = context$2$0.next) {
-        case 0:
-          context$2$0.prev = 0;
-          context$2$0.next = 3;
-          return regeneratorRuntime.awrap(navigator.clipboard.writeText(md));
-
-        case 3:
-          setCopied(true);
-          setTimeout(function () {
-            return setCopied(false);
-          }, 2000);
-          context$2$0.next = 10;
-          break;
-
-        case 7:
-          context$2$0.prev = 7;
-          context$2$0.t0 = context$2$0["catch"](0);
-
-          if (taRef.current) {
-            taRef.current.focus();taRef.current.select();
-          }
-
-        case 10:
-        case "end":
-          return context$2$0.stop();
+function ExportModal({
+  title,
+  md,
+  onClose
+}) {
+  const [copied, setCopied] = useState(false);
+  const taRef = useRef(null);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(md);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      if (taRef.current) {
+        taRef.current.focus();
+        taRef.current.select();
       }
-    }, null, _this3, [[0, 7]]);
+    }
   };
-  return React.createElement(
-    Modal,
-    { title: title + " のMarkdown", onClose: onClose },
-    React.createElement("textarea", { ref: taRef, readOnly: true, value: md, rows: 12,
-      style: _extends({}, inputStyle, mono, { fontSize: 12, resize: "vertical", lineHeight: 1.6 }) }),
-    React.createElement(
-      "button",
-      { onClick: copy,
-        style: { width: "100%", padding: 13, borderRadius: 10, border: "none", background: copied ? "#0D9488" : "#17222E", color: "#fff", fontSize: 14, fontWeight: 700, marginTop: 10, cursor: "pointer" } },
-      copied ? "コピーしました ✓" : "クリップボードにコピー"
-    ),
-    React.createElement(
-      "p",
-      { style: { fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 } },
-      "Obsidianのデイリーノート等に貼り付けてください。frontmatterのestimate_min / actual_minはDataviewで集計できます。"
-    )
-  );
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: `${title} のMarkdown`,
+    onClose: onClose
+  }, /*#__PURE__*/React.createElement("textarea", {
+    ref: taRef,
+    readOnly: true,
+    value: md,
+    rows: 12,
+    style: {
+      ...inputStyle,
+      ...mono,
+      fontSize: 12,
+      resize: "vertical",
+      lineHeight: 1.6
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: copy,
+    style: {
+      width: "100%",
+      padding: 13,
+      borderRadius: 10,
+      border: "none",
+      background: copied ? "#0D9488" : "#17222E",
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: 700,
+      marginTop: 10,
+      cursor: "pointer"
+    }
+  }, copied ? "コピーしました ✓" : "クリップボードにコピー"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      margin: "10px 2px 0",
+      lineHeight: 1.7
+    }
+  }, "Obsidianのデイリーノート等に貼り付けてください。frontmatterのestimate_min / actual_minはDataviewで集計できます。"));
 }
 
 // ===== 追加モーダル =====
-function AddModal(_ref19) {
-  var sections = _ref19.sections;
-  var modes = _ref19.modes;
-  var onClose = _ref19.onClose;
-  var onAdd = _ref19.onAdd;
-  var defaultRoutine = _ref19.defaultRoutine;
-
-  var _useState26 = useState("");
-
-  var _useState262 = _slicedToArray(_useState26, 2);
-
-  var name = _useState262[0];
-  var setName = _useState262[1];
-
-  var _useState27 = useState(15);
-
-  var _useState272 = _slicedToArray(_useState27, 2);
-
-  var estimate = _useState272[0];
-  var setEstimate = _useState272[1];
-
-  var _useState28 = useState(sections[0] && sections[0].id);
-
-  var _useState282 = _slicedToArray(_useState28, 2);
-
-  var section = _useState282[0];
-  var setSection = _useState282[1];
-
-  var _useState29 = useState(modes[0] && modes[0].id);
-
-  var _useState292 = _slicedToArray(_useState29, 2);
-
-  var tmode = _useState292[0];
-  var setTmode = _useState292[1];
-
-  var _useState30 = useState(!!defaultRoutine);
-
-  var _useState302 = _slicedToArray(_useState30, 2);
-
-  var asRoutine = _useState302[0];
-  var setAsRoutine = _useState302[1];
-
-  var _useState31 = useState([]);
-
-  var _useState312 = _slicedToArray(_useState31, 2);
-
-  var days = _useState312[0];
-  var setDays = _useState312[1];
-
-  return React.createElement(
-    Modal,
-    { title: "タスクを追加", onClose: onClose },
-    React.createElement(
-      Field,
-      { label: "タスク名" },
-      React.createElement("input", { value: name, onChange: function (e) {
-          return setName(e.target.value);
-        }, placeholder: "例: メールチェック", style: inputStyle })
-    ),
-    React.createElement(
-      Field,
-      { label: "見積時間(分)" },
-      React.createElement(
-        "div",
-        { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-        [5, 15, 30, 60, 90].map(function (m) {
-          return React.createElement(
-            "button",
-            { key: m, onClick: function () {
-                return setEstimate(m);
-              }, style: chip(estimate === m) },
-            m
-          );
-        }),
-        React.createElement("input", { type: "number", value: estimate, onChange: function (e) {
-            return setEstimate(Number(e.target.value) || 0);
-          }, style: _extends({}, inputStyle, { width: 64, textAlign: "center" }) })
-      )
-    ),
-    React.createElement(
-      Field,
-      { label: "セクション" },
-      React.createElement(
-        "div",
-        { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-        sections.map(function (s) {
-          return React.createElement(
-            "button",
-            { key: s.id, onClick: function () {
-                return setSection(s.id);
-              }, style: chip(section === s.id) },
-            s.label
-          );
-        })
-      )
-    ),
-    React.createElement(
-      Field,
-      { label: "モード" },
-      React.createElement(
-        "div",
-        { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-        modes.map(function (m) {
-          return React.createElement(
-            "button",
-            { key: m.id, onClick: function () {
-                return setTmode(m.id);
-              }, style: _extends({}, chip(tmode === m.id), { borderColor: tmode === m.id ? m.color : "#E1E6EC", background: "#fff", color: tmode === m.id ? m.color : "#5B6B7C", fontWeight: tmode === m.id ? 700 : 400 }) },
-            m.label
-          );
-        })
-      )
-    ),
-    React.createElement(
-      Field,
-      { label: "" },
-      React.createElement(
-        "label",
-        { style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" } },
-        React.createElement("input", { type: "checkbox", checked: asRoutine, onChange: function (e) {
-            return setAsRoutine(e.target.checked);
-          }, style: { width: 18, height: 18, appearance: "auto", WebkitAppearance: "checkbox" } }),
-        "ルーチンとして登録(毎日自動で並ぶ)"
-      )
-    ),
-    asRoutine && React.createElement(
-      Field,
-      { label: "繰り返す曜日(未選択=毎日)" },
-      React.createElement(
-        "div",
-        { style: { display: "flex", gap: 4 } },
-        WEEKDAYS.map(function (w, i) {
-          return React.createElement(
-            "button",
-            { key: i, onClick: function () {
-                return setDays(function (d) {
-                  return d.includes(i) ? d.filter(function (x) {
-                    return x !== i;
-                  }) : [].concat(_toConsumableArray(d), [i]);
-                });
-              }, style: _extends({}, chip(days.includes(i)), { width: 36, padding: "8px 0" }) },
-            w
-          );
-        })
-      )
-    ),
-    React.createElement(
-      "button",
-      { disabled: !name.trim(), onClick: function () {
-          return onAdd({ name: name.trim(), estimate: estimate, section: section, mode: tmode, days: days, comment: "" }, asRoutine);
-        },
-        style: { width: "100%", padding: 14, borderRadius: 10, border: "none", background: name.trim() ? "#17222E" : "#C6CEDA", color: "#fff", fontSize: 15, fontWeight: 700, marginTop: 8, cursor: "pointer" } },
-      "追加する"
-    )
-  );
+function AddModal({
+  sections,
+  modes,
+  onClose,
+  onAdd,
+  defaultRoutine
+}) {
+  const [name, setName] = useState("");
+  const [estimate, setEstimate] = useState(15);
+  const [section, setSection] = useState(sections[0] && sections[0].id);
+  const [tmode, setTmode] = useState(modes[0] && modes[0].id);
+  const [asRoutine, setAsRoutine] = useState(!!defaultRoutine);
+  const [days, setDays] = useState([]);
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: "タスクを追加",
+    onClose: onClose
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "タスク名"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: name,
+    onChange: e => setName(e.target.value),
+    placeholder: "例: メールチェック",
+    style: inputStyle
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "見積時間(分)"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      flexWrap: "wrap"
+    }
+  }, [5, 15, 30, 60, 90].map(m => /*#__PURE__*/React.createElement("button", {
+    key: m,
+    onClick: () => setEstimate(m),
+    style: chip(estimate === m)
+  }, m)), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: estimate,
+    onChange: e => setEstimate(Number(e.target.value) || 0),
+    style: {
+      ...inputStyle,
+      width: 64,
+      textAlign: "center"
+    }
+  }))), /*#__PURE__*/React.createElement(Field, {
+    label: "セクション"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      flexWrap: "wrap"
+    }
+  }, sections.map(s => /*#__PURE__*/React.createElement("button", {
+    key: s.id,
+    onClick: () => setSection(s.id),
+    style: chip(section === s.id)
+  }, s.label)))), /*#__PURE__*/React.createElement(Field, {
+    label: "モード"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      flexWrap: "wrap"
+    }
+  }, modes.map(m => /*#__PURE__*/React.createElement("button", {
+    key: m.id,
+    onClick: () => setTmode(m.id),
+    style: {
+      ...chip(tmode === m.id),
+      borderColor: tmode === m.id ? m.color : "#E1E6EC",
+      background: "#fff",
+      color: tmode === m.id ? m.color : "#5B6B7C",
+      fontWeight: tmode === m.id ? 700 : 400
+    }
+  }, m.label)))), /*#__PURE__*/React.createElement(Field, {
+    label: ""
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      fontSize: 13,
+      cursor: "pointer"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: asRoutine,
+    onChange: e => setAsRoutine(e.target.checked),
+    style: {
+      width: 18,
+      height: 18,
+      appearance: "auto",
+      WebkitAppearance: "checkbox"
+    }
+  }), "ルーチンとして登録(毎日自動で並ぶ)")), asRoutine && /*#__PURE__*/React.createElement(Field, {
+    label: "繰り返す曜日(未選択=毎日)"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 4
+    }
+  }, WEEKDAYS.map((w, i) => /*#__PURE__*/React.createElement("button", {
+    key: i,
+    onClick: () => setDays(d => d.includes(i) ? d.filter(x => x !== i) : [...d, i]),
+    style: {
+      ...chip(days.includes(i)),
+      width: 36,
+      padding: "8px 0"
+    }
+  }, w)))), /*#__PURE__*/React.createElement("button", {
+    disabled: !name.trim(),
+    onClick: () => onAdd({
+      name: name.trim(),
+      estimate,
+      section,
+      mode: tmode,
+      days,
+      comment: ""
+    }, asRoutine),
+    style: {
+      width: "100%",
+      padding: 14,
+      borderRadius: 10,
+      border: "none",
+      background: name.trim() ? "#17222E" : "#C6CEDA",
+      color: "#fff",
+      fontSize: 15,
+      fontWeight: 700,
+      marginTop: 8,
+      cursor: "pointer"
+    }
+  }, "追加する"));
 }
 
 // ===== 詳細モーダル =====
-function DetailModal(_ref20) {
-  var task = _ref20.task;
-  var now = _ref20.now;
-  var onClose = _ref20.onClose;
-  var onSave = _ref20.onSave;
-  var onDelete = _ref20.onDelete;
-
-  var _useState33 = useState(task.name);
-
-  var _useState332 = _slicedToArray(_useState33, 2);
-
-  var name = _useState332[0];
-  var setName = _useState332[1];
-
-  var _useState34 = useState(task.estimate || 0);
-
-  var _useState342 = _slicedToArray(_useState34, 2);
-
-  var estimate = _useState342[0];
-  var setEstimate = _useState342[1];
-
-  var _useState35 = useState(task.comment || "");
-
-  var _useState352 = _slicedToArray(_useState35, 2);
-
-  var comment = _useState352[0];
-  var setComment = _useState352[1];
-
-  return React.createElement(
-    Modal,
-    { title: "タスク詳細", onClose: onClose },
-    React.createElement(
-      Field,
-      { label: "タスク名" },
-      React.createElement("input", { value: name, onChange: function (e) {
-          return setName(e.target.value);
-        }, style: inputStyle })
-    ),
-    React.createElement(
-      Field,
-      { label: "見積時間(分)" },
-      React.createElement("input", { type: "number", value: estimate, onChange: function (e) {
-          return setEstimate(Number(e.target.value) || 0);
-        }, style: inputStyle })
-    ),
-    React.createElement(
-      Field,
-      { label: "実績" },
-      React.createElement(
-        "div",
-        { style: _extends({}, mono, { fontSize: 14, color: "#5B6B7C" }) },
-        fmtDur(elapsedSec(task, now)),
-        task.startClock && " (" + task.startClock + (task.endClock ? "→" + task.endClock : "〜") + ")"
-      )
-    ),
-    React.createElement(
-      Field,
-      { label: "コメント" },
-      React.createElement("textarea", { value: comment, onChange: function (e) {
-          return setComment(e.target.value);
-        }, rows: 3, placeholder: "振り返り・メモ", style: _extends({}, inputStyle, { resize: "vertical" }) })
-    ),
-    React.createElement(
-      "div",
-      { style: { display: "flex", gap: 8, marginTop: 8 } },
-      React.createElement(
-        "button",
-        { onClick: onDelete, style: { flex: 1, padding: 13, borderRadius: 10, border: "1px solid #FCA5A5", background: "#fff", color: "#DC2626", fontSize: 14, cursor: "pointer" } },
-        "削除"
-      ),
-      React.createElement(
-        "button",
-        { onClick: function () {
-            return onSave({ name: name.trim() || task.name, estimate: estimate, comment: comment });
-          }, style: { flex: 2, padding: 13, borderRadius: 10, border: "none", background: "#17222E", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" } },
-        "保存"
-      )
-    )
-  );
+function DetailModal({
+  task,
+  now,
+  onClose,
+  onSave,
+  onDelete
+}) {
+  const [name, setName] = useState(task.name);
+  const [estimate, setEstimate] = useState(task.estimate || 0);
+  const [comment, setComment] = useState(task.comment || "");
+  return /*#__PURE__*/React.createElement(Modal, {
+    title: "タスク詳細",
+    onClose: onClose
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "タスク名"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: name,
+    onChange: e => setName(e.target.value),
+    style: inputStyle
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "見積時間(分)"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: estimate,
+    onChange: e => setEstimate(Number(e.target.value) || 0),
+    style: inputStyle
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "実績"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...mono,
+      fontSize: 14,
+      color: "#5B6B7C"
+    }
+  }, fmtDur(elapsedSec(task, now)), task.startClock && ` (${task.startClock}${task.endClock ? "→" + task.endClock : "〜"})`)), /*#__PURE__*/React.createElement(Field, {
+    label: "コメント"
+  }, /*#__PURE__*/React.createElement("textarea", {
+    value: comment,
+    onChange: e => setComment(e.target.value),
+    rows: 3,
+    placeholder: "振り返り・メモ",
+    style: {
+      ...inputStyle,
+      resize: "vertical"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginTop: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onDelete,
+    style: {
+      flex: 1,
+      padding: 13,
+      borderRadius: 10,
+      border: "1px solid #FCA5A5",
+      background: "#fff",
+      color: "#DC2626",
+      fontSize: 14,
+      cursor: "pointer"
+    }
+  }, "削除"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onSave({
+      name: name.trim() || task.name,
+      estimate,
+      comment
+    }),
+    style: {
+      flex: 2,
+      padding: 13,
+      borderRadius: 10,
+      border: "none",
+      background: "#17222E",
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "保存")));
 }
 
 // ===== 共通UI =====
-function Modal(_ref21) {
-  var title = _ref21.title;
-  var children = _ref21.children;
-  var onClose = _ref21.onClose;
-
-  return React.createElement(
-    "div",
-    { onClick: onClose, style: { position: "fixed", inset: 0, background: "rgba(23,34,46,.5)", zIndex: 50, display: "flex", alignItems: "flex-end", justifyContent: "center" } },
-    React.createElement(
-      "div",
-      { onClick: function (e) {
-          return e.stopPropagation();
-        }, style: { background: "#F7F9FB", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "18px 18px calc(env(safe-area-inset-bottom, 0px) + 28px)", maxHeight: "85vh", overflowY: "auto" } },
-      React.createElement(
-        "div",
-        { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
-        React.createElement(
-          "h2",
-          { style: { fontSize: 16, fontWeight: 700, margin: 0 } },
-          title
-        ),
-        React.createElement(
-          "button",
-          { onClick: onClose, style: { border: "none", background: "none", fontSize: 20, color: "#8595A6", cursor: "pointer" }, "aria-label": "閉じる" },
-          "×"
-        )
-      ),
-      children
-    )
-  );
+function Modal({
+  title,
+  children,
+  onClose
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: onClose,
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(23,34,46,.5)",
+      zIndex: 50,
+      display: "flex",
+      alignItems: "flex-end",
+      justifyContent: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      background: "#F7F9FB",
+      width: "100%",
+      maxWidth: 480,
+      borderRadius: "18px 18px 0 0",
+      padding: "18px 18px calc(env(safe-area-inset-bottom, 0px) + 28px)",
+      maxHeight: "85vh",
+      overflowY: "auto"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      margin: 0
+    }
+  }, title), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    style: {
+      border: "none",
+      background: "none",
+      fontSize: 20,
+      color: "#8595A6",
+      cursor: "pointer"
+    },
+    "aria-label": "閉じる"
+  }, "×")), children));
 }
-
-function Field(_ref23) {
-  var label = _ref23.label;
-  var children = _ref23.children;
-
-  return React.createElement(
-    "div",
-    { style: { marginBottom: 14 } },
-    label && React.createElement(
-      "div",
-      { style: { fontSize: 12, fontWeight: 600, color: "#5B6B7C", marginBottom: 6 } },
-      label
-    ),
-    children
-  );
+function Field({
+  label,
+  children
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, label && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: "#5B6B7C",
+      marginBottom: 6
+    }
+  }, label), children);
 }
-
-var inputStyle = { width: "100%", padding: "11px 12px", borderRadius: 10, border: "1px solid #E1E6EC", fontSize: 15, background: "#fff", boxSizing: "border-box", fontFamily: "inherit" };
-
-var chip = function chip(active) {
-  return {
-    padding: "8px 14px", borderRadius: 999, border: "1.5px solid " + (active ? "#17222E" : "#E1E6EC"),
-    background: active ? "#17222E" : "#fff", color: active ? "#fff" : "#5B6B7C",
-    fontSize: 13, cursor: "pointer"
-  };
+const inputStyle = {
+  width: "100%",
+  padding: "11px 12px",
+  borderRadius: 10,
+  border: "1px solid #E1E6EC",
+  fontSize: 15,
+  background: "#fff",
+  boxSizing: "border-box",
+  fontFamily: "inherit"
 };
-
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(TaskChuteMobile, null));
-</script>
+const chip = active => ({
+  padding: "8px 14px",
+  borderRadius: 999,
+  border: `1.5px solid ${active ? "#17222E" : "#E1E6EC"}`,
+  background: active ? "#17222E" : "#fff",
+  color: active ? "#fff" : "#5B6B7C",
+  fontSize: 13,
+  cursor: "pointer"
+});
+ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(TaskChuteMobile, null));</script>
 </body>
 </html>
