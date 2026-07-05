@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#17222E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TaskChute">
+<title>TaskChute Mobile</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%2317222E'/%3E%3Ctext x='50' y='68' font-size='52' text-anchor='middle' fill='%235EEAD4'%3E%E2%8F%B1%3C/text%3E%3C/svg%3E">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #F2F4F7; -webkit-tap-highlight-color: transparent; }
+  * { box-sizing: border-box; }
+  input, textarea, button { -webkit-appearance: none; appearance: none; }
+  @keyframes tcmPulse { 0%,100%{opacity:1} 50%{opacity:.2} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// ===== ストレージ(localStorage) =====
+const storage = {
+  async get(key) {
+    const v = localStorage.getItem(key);
+    if (v === null) throw new Error("not found");
+    return { key, value: v };
+  },
+  async set(key, value) {
+    localStorage.setItem(key, value);
+    return { key, value };
+  },
+};
+
+// ===== 定数 =====
+const STORAGE_KEY = "tcm-data-v1";
+
+const DEFAULT_MODES = [
+  { id: "work", label: "仕事", color: "#2563EB" },
+  { id: "routine", label: "ルーチン", color: "#0D9488" },
+  { id: "health", label: "健康", color: "#16A34A" },
+  { id: "study", label: "学習", color: "#7C3AED" },
+  { id: "life", label: "生活", color: "#D97706" },
+];
+
+const DEFAULT_SECTIONS = [
+  { id: "morning", label: "朝", range: "6:00–9:00" },
+  { id: "am", label: "午前", range: "9:00–12:00" },
+  { id: "pm", label: "午後", range: "12:00–15:00" },
+  { id: "evening", label: "夕方", range: "15:00–18:00" },
+  { id: "night", label: "夜", range: "18:00–24:00" },
+];
+
+const COLOR_PALETTE = ["#2563EB", "#0D9488", "#16A34A", "#7C3AED", "#D97706", "#DC2626", "#DB2777", "#0891B2", "#65A30D", "#57534E"];
+
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+// ===== ユーティリティ =====
+const dateToKey = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const todayKey = () => dateToKey(new Date());
+
+const fmtClock = (d) =>
+  `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+const fmtDur = (sec) => {
+  const m = Math.floor(sec / 60);
+  const h = Math.floor(m / 60);
+  return h > 0 ? `${h}:${String(m % 60).padStart(2, "0")}` : `${m}分`;
+};
+
+const fmtMin = (min) => {
+  min = Math.round(min);
+  const h = Math.floor(min / 60);
+  return h > 0 ? `${h}時間${min % 60 ? min % 60 + "分" : ""}` : `${min}分`;
+};
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+const elapsedSec = (t, now) =>
+  (t.actualSec || 0) + (t.running && t.startedAt ? Math.max(0, Math.floor((now - t.startedAt) / 1000)) : 0);
+
+const mono = { fontFamily: "ui-monospace,'SF Mono',Menlo,monospace", fontVariantNumeric: "tabular-nums" };
+
+function periodKeys(period) {
+  const now = new Date();
+  if (period === "day") return [todayKey()];
+  const keys = [];
+  if (period === "week") {
+    const d = new Date(now);
+    const diff = (d.getDay() + 6) % 7; // 月曜=0
+    d.setDate(d.getDate() - diff);
+    for (let i = 0; i < 7; i++) { keys.push(dateToKey(d)); d.setDate(d.getDate() + 1); }
+  } else if (period === "month") {
+    const d = new Date(now.getFullYear(), now.getMonth(), 1);
+    while (d.getMonth() === now.getMonth()) { keys.push(dateToKey(d)); d.setDate(d.getDate() + 1); }
+  }
+  return keys;
+}
+
+function lastNDaysKeys(n) {
+  const keys = [];
+  const d = new Date();
+  d.setDate(d.getDate() - (n - 1));
+  for (let i = 0; i < n; i++) { keys.push(dateToKey(d)); d.setDate(d.getDate() + 1); }
+  return keys;
+}
+
+// ===== Markdown生成(Obsidian/Dataview対応) =====
+function buildMarkdown(dateKey, tasks, sections, modes) {
+  const done = tasks.filter((t) => t.done);
+  const estMin = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
+  const actMin = Math.round(tasks.reduce((a, t) => a + (t.actualSec || 0), 0) / 60);
+  const modeOf = (id) => modes.find((m) => m.id === id);
+
+  let md = `---\ndate: ${dateKey}\ntype: taskchute-log\ntasks_total: ${tasks.length}\ntasks_done: ${done.length}\nestimate_min: ${estMin}\nactual_min: ${actMin}\n---\n\n# ${dateKey} タスクログ\n`;
+
+  if (tasks.length === 0) {
+    md += "\nこの日のタスク記録はありません。\n";
+    return md;
+  }
+
+  const known = new Set(sections.map((s) => s.id));
+  for (let i = 0; i < sections.length; i++) {
+    const sec = sections[i];
+    const list = tasks.filter((t) => t.section === sec.id || (i === 0 && !known.has(t.section)));
+    if (list.length === 0) continue;
+    md += `\n## ${sec.label}(${sec.range})\n\n`;
+    for (const t of list) {
+      const mode = modeOf(t.mode);
+      const time = t.startClock ? ` ${t.startClock}→${t.endClock || ""}` : "";
+      const act = t.actualSec ? `/実績${Math.round(t.actualSec / 60)}分` : "";
+      md += `- [${t.done ? "x" : " "}] ${t.name}${mode ? ` #${mode.label}` : ""}${time} (見積${t.estimate || 0}分${act})\n`;
+      if (t.comment) md += `    - 💬 ${t.comment}\n`;
+    }
+  }
+  return md;
+}
+
+// ===== 本体 =====
+function TaskChuteMobile() {
+  const [data, setData] = useState(null);
+  const [view, setView] = useState("today");
+  const [now, setNow] = useState(Date.now());
+  const [showAdd, setShowAdd] = useState(false);
+  const [editTask, setEditTask] = useState(null);
+  const [exportMd, setExportMd] = useState(null);
+  const [backupModal, setBackupModal] = useState(null);
+  const [loadError, setLoadError] = useState(false);
+  const saveTimer = useRef(null);
+  const loaded = useRef(false);
+
+  const dateKey = todayKey();
+
+  function normalize(d) {
+    if (!d || typeof d !== "object") d = {};
+    if (!Array.isArray(d.routines)) d.routines = [];
+    if (!d.days || typeof d.days !== "object") d.days = {};
+    if (!Array.isArray(d.sections) || d.sections.length === 0) d.sections = DEFAULT_SECTIONS;
+    if (!Array.isArray(d.modes) || d.modes.length === 0) d.modes = DEFAULT_MODES;
+    if (!Array.isArray(d.goals)) d.goals = [];
+    return d;
+  }
+
+  useEffect(() => {
+    (async () => {
+      let d = {};
+      try {
+        const res = await storage.get(STORAGE_KEY);
+        if (res && res.value) d = JSON.parse(res.value);
+      } catch (e) { /* 初回起動は正常 */ }
+      d = expandRoutines(normalize(d));
+      loaded.current = true;
+      setData(d);
+    })().catch(() => setLoadError(true));
+  }, []);
+
+  useEffect(() => {
+    if (!data || !loaded.current) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try { await storage.set(STORAGE_KEY, JSON.stringify(data)); }
+      catch (e) { console.error("保存に失敗しました", e); }
+    }, 600);
+    return () => clearTimeout(saveTimer.current);
+  }, [data]);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // 日付が変わったらルーチンを再展開(アプリを開きっぱなしでも対応)
+  const lastDay = useRef(dateKey);
+  useEffect(() => {
+    const k = todayKey();
+    if (k !== lastDay.current && data) {
+      lastDay.current = k;
+      setData((d) => expandRoutines(d));
+    }
+  }, [now]);
+
+  function expandRoutines(d) {
+    const key = todayKey();
+    const day = d.days[key] || { tasks: [] };
+    const dow = new Date().getDay();
+    const existing = new Set(day.tasks.map((t) => t.routineId).filter(Boolean));
+    for (const r of d.routines) {
+      const active = !r.days || r.days.length === 0 || r.days.includes(dow);
+      if (active && !existing.has(r.id)) {
+        day.tasks.push({
+          id: uid(), routineId: r.id, name: r.name, estimate: r.estimate,
+          section: r.section, mode: r.mode, actualSec: 0, running: false,
+          done: false, comment: "",
+        });
+      }
+    }
+    return { ...d, days: { ...d.days, [key]: day } };
+  }
+
+  const tasks = (data && data.days[dateKey] && data.days[dateKey].tasks) || [];
+  const sections = (data && data.sections) || DEFAULT_SECTIONS;
+  const modes = (data && data.modes) || DEFAULT_MODES;
+  const modeOf = useCallback((id) => modes.find((m) => m.id === id) || modes[0] || DEFAULT_MODES[0], [modes]);
+
+  const updateTasks = useCallback((fn) => {
+    setData((d) => {
+      const day = d.days[dateKey] || { tasks: [] };
+      return { ...d, days: { ...d.days, [dateKey]: { ...day, tasks: fn(day.tasks) } } };
+    });
+  }, [dateKey]);
+
+  const startTask = (id) =>
+    updateTasks((ts) =>
+      ts.map((t) => {
+        if (t.id === id)
+          return { ...t, running: true, startedAt: Date.now(), startClock: t.startClock || fmtClock(new Date()) };
+        if (t.running)
+          return { ...t, running: false, actualSec: elapsedSec(t, Date.now()), startedAt: null };
+        return t;
+      })
+    );
+
+  const stopTask = (id, markDone) =>
+    updateTasks((ts) =>
+      ts.map((t) =>
+        t.id === id
+          ? { ...t, running: false, actualSec: elapsedSec(t, Date.now()), startedAt: null,
+              done: markDone ? true : t.done, endClock: markDone ? fmtClock(new Date()) : t.endClock }
+          : t
+      )
+    );
+
+  const toggleDone = (t) => {
+    if (t.running) stopTask(t.id, true);
+    else
+      updateTasks((ts) =>
+        ts.map((x) =>
+          x.id === t.id
+            ? { ...x, done: !x.done, endClock: !x.done ? fmtClock(new Date()) : x.endClock }
+            : x
+        )
+      );
+  };
+
+  const deleteTask = (id) => updateTasks((ts) => ts.filter((t) => t.id !== id));
+
+  const moveTask = (id, dir) =>
+    updateTasks((ts) => {
+      const idx = ts.findIndex((t) => t.id === id);
+      const sameSection = ts.filter((t) => t.section === ts[idx].section);
+      const pos = sameSection.findIndex((t) => t.id === id);
+      const swapWith = sameSection[pos + dir];
+      if (!swapWith) return ts;
+      const arr = [...ts];
+      const j = arr.findIndex((t) => t.id === swapWith.id);
+      [arr[idx], arr[j]] = [arr[j], arr[idx]];
+      return arr;
+    });
+
+  const remainingSec = tasks.reduce((acc, t) => {
+    if (t.done) return acc;
+    const est = (t.estimate || 0) * 60;
+    return acc + Math.max(0, est - elapsedSec(t, now));
+  }, 0);
+  const endTime = new Date(now + remainingSec * 1000);
+  const totalEst = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
+  const doneEst = tasks.filter((t) => t.done).reduce((a, t) => a + (t.estimate || 0), 0);
+  const progress = totalEst > 0 ? doneEst / totalEst : 0;
+  const runningTask = tasks.find((t) => t.running);
+
+  const S = {
+    app: { fontFamily: "'Hiragino Sans','Noto Sans JP',system-ui,sans-serif", background: "#F2F4F7", minHeight: "100vh", color: "#17222E", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column" },
+  };
+
+  if (loadError)
+    return <div style={{ ...S.app, padding: 24 }}><p>データの読み込みに失敗しました。再読み込みしてください。</p></div>;
+
+  if (!data)
+    return (
+      <div style={{ ...S.app, alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "#8595A6", fontSize: 14 }}>読み込み中…</div>
+      </div>
+    );
+
+  return (
+    <div style={S.app}>
+      <header style={{ background: "#17222E", color: "#F2F4F7", padding: "calc(env(safe-area-inset-top, 0px) + 18px) 20px 14px", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: 2, color: "#8FA3B8" }}>
+              {new Date(now).getMonth() + 1}/{new Date(now).getDate()}({WEEKDAYS[new Date(now).getDay()]}) {fmtClock(new Date(now))}
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 4 }}>
+              <span style={{ fontSize: 12, color: "#8FA3B8" }}>終了予定</span>
+              <span style={{ ...mono, fontSize: 34, fontWeight: 700, lineHeight: 1 }}>
+                {tasks.some((t) => !t.done) ? fmtClock(endTime) : "完了"}
+              </span>
+              {remainingSec > 0 && <span style={{ fontSize: 12, color: "#8FA3B8" }}>残り {fmtDur(remainingSec)}</span>}
+            </div>
+          </div>
+          {runningTask && (
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 10, color: "#5EEAD4", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
+                <span style={{ width: 6, height: 6, borderRadius: 3, background: "#5EEAD4", animation: "tcmPulse 1.2s infinite" }} />
+                実行中
+              </div>
+              <div style={{ ...mono, fontSize: 16 }}>{fmtDur(elapsedSec(runningTask, now))}</div>
+            </div>
+          )}
+        </div>
+        <div style={{ marginTop: 12, height: 4, background: "#2C3E50", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ width: `${progress * 100}%`, height: "100%", background: "#5EEAD4", transition: "width .4s" }} />
+        </div>
+      </header>
+
+      <main style={{ flex: 1, overflowY: "auto", paddingBottom: 100 }}>
+        {view === "today" && (
+          <TodayView tasks={tasks} now={now} sections={sections} modeOf={modeOf}
+            onStart={startTask} onStop={(id) => stopTask(id, false)} onDone={toggleDone} onOpen={setEditTask} onMove={moveTask} />
+        )}
+        {view === "routines" && (
+          <RoutineView routines={data.routines} sections={sections} modeOf={modeOf}
+            onDelete={(id) => setData((d) => ({ ...d, routines: d.routines.filter((r) => r.id !== id) }))} />
+        )}
+        {view === "log" && (
+          <LogView days={data.days} modeOf={modeOf}
+            onExport={(key) => setExportMd({ title: key, md: buildMarkdown(key, (data.days[key] && data.days[key].tasks) || [], sections, modes) })} />
+        )}
+        {view === "analysis" && (
+          <AnalysisView data={data} setData={setData} modes={modes} modeOf={modeOf} now={now} />
+        )}
+        {view === "settings" && (
+          <SettingsView data={data} setData={setData}
+            onExportDate={(key) => setExportMd({ title: key, md: buildMarkdown(key, (data.days[key] && data.days[key].tasks) || [], sections, modes) })}
+            onBackup={() => setBackupModal("export")}
+            onImport={() => setBackupModal("import")} />
+        )}
+      </main>
+
+      {(view === "today" || view === "routines") && (
+        <button onClick={() => setShowAdd(true)}
+          style={{ position: "fixed", bottom: "calc(env(safe-area-inset-bottom, 0px) + 76px)", right: "max(16px, calc(50% - 224px))", width: 56, height: 56, borderRadius: 28, background: "#17222E", color: "#5EEAD4", fontSize: 28, border: "none", boxShadow: "0 4px 14px rgba(23,34,46,.35)", cursor: "pointer" }}
+          aria-label="タスクを追加">＋</button>
+      )}
+
+      <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 480, margin: "0 auto", display: "flex", background: "#FFFFFF", borderTop: "1px solid #E1E6EC", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        {[["today", "今日"], ["routines", "ルーチン"], ["log", "ログ"], ["analysis", "分析"], ["settings", "設定"]].map(([id, label]) => (
+          <button key={id} onClick={() => setView(id)}
+            style={{ flex: 1, padding: "12px 0 14px", border: "none", background: "none", fontSize: 12, fontWeight: view === id ? 700 : 400, color: view === id ? "#17222E" : "#8595A6", borderTop: view === id ? "2px solid #17222E" : "2px solid transparent", cursor: "pointer" }}>
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {showAdd && (
+        <AddModal sections={sections} modes={modes} defaultRoutine={view === "routines"}
+          onClose={() => setShowAdd(false)}
+          onAdd={(item, asRoutine) => {
+            if (asRoutine) {
+              const r = { id: uid(), name: item.name, estimate: item.estimate, section: item.section, mode: item.mode, days: item.days };
+              setData((d) => expandRoutines({ ...d, routines: [...d.routines, r] }));
+            } else {
+              updateTasks((ts) => [...ts, { id: uid(), ...item, actualSec: 0, running: false, done: false, comment: "" }]);
+            }
+            setShowAdd(false);
+          }} />
+      )}
+      {editTask && (
+        <DetailModal task={tasks.find((t) => t.id === editTask.id) || editTask} now={now}
+          onClose={() => setEditTask(null)}
+          onSave={(patch) => { updateTasks((ts) => ts.map((t) => (t.id === editTask.id ? { ...t, ...patch } : t))); setEditTask(null); }}
+          onDelete={() => { deleteTask(editTask.id); setEditTask(null); }} />
+      )}
+      {exportMd && <ExportModal title={exportMd.title} md={exportMd.md} onClose={() => setExportMd(null)} />}
+      {backupModal === "export" && <BackupModal data={data} onClose={() => setBackupModal(null)} />}
+      {backupModal === "import" && (
+        <ImportModal onClose={() => setBackupModal(null)}
+          onImport={(d) => { setData(expandRoutines(normalize(d))); setBackupModal(null); }} />
+      )}
+    </div>
+  );
+}
+
+// ===== 今日ビュー =====
+function TodayView({ tasks, now, sections, modeOf, onStart, onStop, onDone, onOpen, onMove }) {
+  if (tasks.length === 0)
+    return (
+      <div style={{ padding: "60px 24px", textAlign: "center", color: "#8595A6", fontSize: 14, lineHeight: 1.8 }}>
+        今日のタスクはまだありません。<br />＋ボタンから追加するか、ルーチンを登録すると毎日自動で並びます。
+      </div>
+    );
+  const known = new Set(sections.map((s) => s.id));
+  return (
+    <div style={{ padding: "8px 12px" }}>
+      {sections.map((sec, si) => {
+        const list = tasks.filter((t) => t.section === sec.id || (si === 0 && !known.has(t.section)));
+        if (list.length === 0) return null;
+        const secEst = list.filter((t) => !t.done).reduce((a, t) => a + (t.estimate || 0), 0);
+        return (
+          <section key={sec.id} style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 6px 6px" }}>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{sec.label}
+                <span style={{ fontWeight: 400, color: "#8595A6", fontSize: 11, marginLeft: 6 }}>{sec.range}</span>
+              </span>
+              {secEst > 0 && <span style={{ ...mono, fontSize: 11, color: "#8595A6" }}>残 {fmtMin(secEst)}</span>}
+            </div>
+            <div style={{ background: "#FFFFFF", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(23,34,46,.06)" }}>
+              {list.map((t, i) => {
+                const mode = modeOf(t.mode);
+                const el = elapsedSec(t, now);
+                const over = !t.done && t.estimate && el > t.estimate * 60;
+                return (
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderTop: i > 0 ? "1px solid #EDF0F4" : "none", borderLeft: t.running ? "3px solid #0D9488" : "3px solid transparent", background: t.running ? "#F0FBFA" : "transparent", opacity: t.done ? 0.5 : 1 }}>
+                    <button onClick={() => onDone(t)} aria-label="完了"
+                      style={{ width: 22, height: 22, borderRadius: 11, border: `2px solid ${t.done ? mode.color : "#C6CEDA"}`, background: t.done ? mode.color : "#fff", color: "#fff", fontSize: 12, lineHeight: 1, cursor: "pointer", flexShrink: 0 }}>
+                      {t.done ? "✓" : ""}
+                    </button>
+                    <div style={{ flex: 1, minWidth: 0 }} onClick={() => onOpen(t)}>
+                      <div style={{ fontSize: 14, fontWeight: 500, textDecoration: t.done ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: mode.color, marginRight: 6 }} />
+                        {t.name}
+                      </div>
+                      <div style={{ ...mono, fontSize: 11, color: over ? "#DC2626" : "#8595A6", marginTop: 2 }}>
+                        見積 {fmtMin(t.estimate || 0)}
+                        {el > 0 && ` ・ 実績 ${fmtDur(el)}`}
+                        {t.startClock && ` ・ ${t.startClock}${t.endClock ? "→" + t.endClock : "〜"}`}
+                      </div>
+                    </div>
+                    {!t.done && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <button onClick={() => onMove(t.id, -1)} style={arrowBtn} aria-label="上へ">▲</button>
+                        <button onClick={() => onMove(t.id, 1)} style={arrowBtn} aria-label="下へ">▼</button>
+                      </div>
+                    )}
+                    {!t.done && (
+                      <button onClick={() => (t.running ? onStop(t.id) : onStart(t.id))}
+                        style={{ ...mono, padding: "8px 12px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: t.running ? "#0D9488" : "#EDF0F4", color: t.running ? "#fff" : "#17222E", flexShrink: 0 }}>
+                        {t.running ? "停止" : "開始"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+const arrowBtn = { border: "none", background: "none", color: "#C6CEDA", fontSize: 9, padding: 4, cursor: "pointer" };
+
+// ===== ルーチンビュー =====
+function RoutineView({ routines, sections, modeOf, onDelete }) {
+  if (routines.length === 0)
+    return (
+      <div style={{ padding: "60px 24px", textAlign: "center", color: "#8595A6", fontSize: 14, lineHeight: 1.8 }}>
+        ルーチンはまだありません。<br />＋ボタンで「ルーチンとして登録」をオンにすると、指定した曜日に毎日自動でタスクが並びます。
+      </div>
+    );
+  return (
+    <div style={{ padding: "16px 12px" }}>
+      <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(23,34,46,.06)" }}>
+        {routines.map((r, i) => {
+          const mode = modeOf(r.mode);
+          const sec = sections.find((s) => s.id === r.section);
+          return (
+            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px", borderTop: i > 0 ? "1px solid #EDF0F4" : "none" }}>
+              <span style={{ width: 8, height: 8, borderRadius: 4, background: mode.color, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 500 }}>{r.name}</div>
+                <div style={{ fontSize: 11, color: "#8595A6", marginTop: 2 }}>
+                  {(sec && sec.label) || "?"} ・ {fmtMin(r.estimate)} ・ {!r.days || r.days.length === 0 || r.days.length === 7 ? "毎日" : r.days.map((d) => WEEKDAYS[d]).join("")}
+                </div>
+              </div>
+              <button onClick={() => onDelete(r.id)} style={{ border: "none", background: "none", color: "#C6CEDA", fontSize: 13, cursor: "pointer" }}>削除</button>
+            </div>
+          );
+        })}
+      </div>
+      <p style={{ fontSize: 11, color: "#8595A6", padding: "12px 6px", lineHeight: 1.7 }}>
+        ルーチンを削除しても、今日すでに展開されたタスクは残ります。
+      </p>
+    </div>
+  );
+}
+
+// ===== ログビュー =====
+function LogView({ days, modeOf, onExport }) {
+  const keys = Object.keys(days).sort().reverse();
+  const rows = keys
+    .map((k) => {
+      const done = ((days[k] && days[k].tasks) || []).filter((t) => t.done);
+      const est = done.reduce((a, t) => a + (t.estimate || 0), 0);
+      const act = done.reduce((a, t) => a + (t.actualSec || 0), 0);
+      return { key: k, done, est, act };
+    })
+    .filter((r) => r.done.length > 0);
+  if (rows.length === 0)
+    return <div style={{ padding: "60px 24px", textAlign: "center", color: "#8595A6", fontSize: 14 }}>完了したタスクがまだありません。</div>;
+  return (
+    <div style={{ padding: "16px 12px" }}>
+      {rows.map((r) => (
+        <section key={r.key} style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "0 6px 6px", alignItems: "center" }}>
+            <span style={{ fontSize: 13, fontWeight: 700 }}>{r.key}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ ...mono, fontSize: 11, color: "#8595A6" }}>
+                {r.done.length}件 ・ 見積{fmtMin(r.est)} / 実績{fmtDur(r.act)}
+              </span>
+              <button onClick={() => onExport(r.key)}
+                style={{ border: "1px solid #C6CEDA", background: "#fff", color: "#17222E", fontSize: 11, borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}>
+                MD
+              </button>
+            </div>
+          </div>
+          <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(23,34,46,.06)" }}>
+            {r.done.map((t, i) => (
+              <div key={t.id} style={{ padding: "10px 12px", borderTop: i > 0 ? "1px solid #EDF0F4" : "none" }}>
+                <div style={{ fontSize: 13 }}>
+                  <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: modeOf(t.mode).color, marginRight: 6 }} />
+                  {t.name}
+                </div>
+                <div style={{ ...mono, fontSize: 11, color: "#8595A6", marginTop: 2 }}>
+                  {t.startClock || "--:--"}→{t.endClock || "--:--"} ・ 見積{fmtMin(t.estimate || 0)} / 実績{fmtDur(t.actualSec || 0)}
+                </div>
+                {t.comment && <div style={{ fontSize: 12, color: "#5B6B7C", marginTop: 4 }}>💬 {t.comment}</div>}
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+// ===== 日別チャート(div描画) =====
+function DailyChart({ rows }) {
+  const max = Math.max(...rows.map((d) => Math.max(d.est, d.act)), 60);
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, fontSize: 10, color: "#8595A6", padding: "0 4px 8px" }}>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#C6CEDA", borderRadius: 2, marginRight: 4 }} />見積</span>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#0D9488", borderRadius: 2, marginRight: 4 }} />実績</span>
+        <span style={mono}>最大 {fmtMin(max)}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: rows.length > 10 ? 1 : 3, height: 140, borderBottom: "1px solid #E1E6EC" }}>
+        {rows.map((d, i) => (
+          <div key={i} style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 1, height: "100%" }}>
+            <div style={{ flex: 1, background: "#C6CEDA", height: `${(d.est / max) * 100}%`, borderRadius: "2px 2px 0 0", minHeight: d.est > 0 ? 2 : 0 }} />
+            <div style={{ flex: 1, background: "#0D9488", height: `${(d.act / max) * 100}%`, borderRadius: "2px 2px 0 0", minHeight: d.act > 0 ? 2 : 0 }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#8595A6", paddingTop: 4 }}>
+        <span style={mono}>{rows[0] && rows[0].day}</span>
+        {rows.length > 2 && <span style={mono}>{rows[Math.floor(rows.length / 2)].day}</span>}
+        <span style={mono}>{rows[rows.length - 1] && rows[rows.length - 1].day}</span>
+      </div>
+    </div>
+  );
+}
+
+// ===== 分析ビュー =====
+function AnalysisView({ data, setData, modes, modeOf, now }) {
+  const [range, setRange] = useState(7);
+  const [goalModal, setGoalModal] = useState(null);
+
+  const card = { background: "#fff", borderRadius: 12, boxShadow: "0 1px 2px rgba(23,34,46,.06)" };
+  const h = { fontSize: 13, fontWeight: 700, padding: "0 6px 6px" };
+
+  const collectTasks = useCallback((keys) => {
+    const out = [];
+    for (const k of keys) {
+      for (const t of (data.days[k] && data.days[k].tasks) || []) out.push({ ...t, _day: k });
+    }
+    return out;
+  }, [data.days]);
+
+  const goalProgress = useCallback((g) => {
+    const keys = periodKeys(g.period);
+    const ts = collectTasks(keys);
+    const sec = ts.reduce((a, t) => {
+      if (g.mode && t.mode !== g.mode) return a;
+      if (g.keyword && !t.name.includes(g.keyword)) return a;
+      return a + elapsedSec(t, now);
+    }, 0);
+    return sec / 60;
+  }, [collectTasks, now]);
+
+  const dailyData = useMemo(() => {
+    return lastNDaysKeys(range).map((k) => {
+      const ts = (data.days[k] && data.days[k].tasks) || [];
+      return {
+        day: k.slice(5).replace("-", "/"),
+        act: Math.round(ts.reduce((a, t) => a + (t.actualSec || 0), 0) / 60),
+        est: ts.reduce((a, t) => a + (t.estimate || 0), 0),
+      };
+    });
+  }, [data.days, range]);
+
+  const modeDist = useMemo(() => {
+    const ts = collectTasks(lastNDaysKeys(range));
+    const map = {};
+    let total = 0;
+    for (const t of ts) {
+      const sec = t.actualSec || 0;
+      map[t.mode] = (map[t.mode] || 0) + sec;
+      total += sec;
+    }
+    return { total, rows: Object.entries(map).map(([id, sec]) => ({ mode: modeOf(id), sec })).sort((a, b) => b.sec - a.sec) };
+  }, [collectTasks, range, modeOf]);
+
+  const accuracy = useMemo(() => {
+    const ts = collectTasks(lastNDaysKeys(range)).filter((t) => t.done && t.estimate > 0 && t.actualSec > 0);
+    if (ts.length === 0) return null;
+    const ratios = ts.map((t) => t.actualSec / 60 / t.estimate);
+    const avg = ratios.reduce((a, r) => a + r, 0) / ratios.length;
+    const over = ts.filter((t) => t.actualSec / 60 > t.estimate).length;
+    return { avg, count: ts.length, over };
+  }, [collectTasks, range]);
+
+  const periodLabel = { day: "今日", week: "今週", month: "今月" };
+
+  return (
+    <div style={{ padding: "16px 12px 32px" }}>
+      <section style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 6px 6px" }}>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>目標</span>
+          <button onClick={() => setGoalModal("new")}
+            style={{ border: "1px solid #C6CEDA", background: "#fff", fontSize: 11, borderRadius: 6, padding: "4px 10px", cursor: "pointer", color: "#17222E" }}>
+            ＋ 目標を追加
+          </button>
+        </div>
+        {data.goals.length === 0 ? (
+          <div style={{ ...card, padding: "20px 16px", fontSize: 13, color: "#8595A6", lineHeight: 1.7 }}>
+            目標を追加すると、モードやキーワードに紐づく時間の使い方を追跡できます。例:「学習に週5時間」「筋トレを週3時間」
+          </div>
+        ) : (
+          <div style={{ ...card, overflow: "hidden" }}>
+            {data.goals.map((g, i) => {
+              const actMin = goalProgress(g);
+              const pct = g.targetMin > 0 ? Math.min(1, actMin / g.targetMin) : 0;
+              const gm = g.mode ? modeOf(g.mode) : null;
+              const color = (gm && gm.color) || "#17222E";
+              const achieved = actMin >= g.targetMin;
+              return (
+                <div key={g.id} onClick={() => setGoalModal(g)}
+                  style={{ padding: "12px", borderTop: i > 0 ? "1px solid #EDF0F4" : "none", cursor: "pointer" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span style={{ fontSize: 14, fontWeight: 500 }}>
+                      {gm && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: color, marginRight: 6 }} />}
+                      {g.name}
+                      {achieved && <span style={{ marginLeft: 6, fontSize: 12 }}>🎯</span>}
+                    </span>
+                    <span style={{ ...mono, fontSize: 11, color: "#8595A6" }}>{periodLabel[g.period]}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                    <div style={{ flex: 1, height: 8, background: "#EDF0F4", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{ width: `${pct * 100}%`, height: "100%", background: color, transition: "width .4s" }} />
+                    </div>
+                    <span style={{ ...mono, fontSize: 12, color: achieved ? color : "#5B6B7C", fontWeight: achieved ? 700 : 400, flexShrink: 0 }}>
+                      {fmtMin(actMin)} / {fmtMin(g.targetMin)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <div style={{ display: "flex", gap: 6, padding: "0 6px 12px" }}>
+        {[[7, "過去7日"], [30, "過去30日"]].map(([n, label]) => (
+          <button key={n} onClick={() => setRange(n)} style={chip(range === n)}>{label}</button>
+        ))}
+      </div>
+
+      <section style={{ marginBottom: 24 }}>
+        <div style={h}>日別の時間(分)</div>
+        <div style={{ ...card, padding: "14px 12px 10px" }}>
+          {dailyData.every((d) => d.act === 0 && d.est === 0) ? (
+            <div style={{ padding: "20px 12px", fontSize: 13, color: "#8595A6", textAlign: "center" }}>この期間の記録はまだありません。</div>
+          ) : (
+            <DailyChart rows={dailyData} />
+          )}
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 24 }}>
+        <div style={h}>モード別の時間配分</div>
+        <div style={{ ...card, padding: "14px 14px 8px" }}>
+          {modeDist.total === 0 ? (
+            <div style={{ padding: "12px 0 18px", fontSize: 13, color: "#8595A6", textAlign: "center" }}>実績のあるタスクがまだありません。</div>
+          ) : (
+            modeDist.rows.map(({ mode, sec }) => {
+              const pct = sec / modeDist.total;
+              return (
+                <div key={mode.id} style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                    <span>
+                      <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: mode.color, marginRight: 6 }} />
+                      {mode.label}
+                    </span>
+                    <span style={{ ...mono, color: "#5B6B7C" }}>{fmtDur(sec)}({Math.round(pct * 100)}%)</span>
+                  </div>
+                  <div style={{ height: 8, background: "#EDF0F4", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ width: `${pct * 100}%`, height: "100%", background: mode.color }} />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
+
+      <section>
+        <div style={h}>見積精度</div>
+        <div style={{ ...card, padding: "16px 14px" }}>
+          {!accuracy ? (
+            <div style={{ fontSize: 13, color: "#8595A6", textAlign: "center" }}>見積と実績が両方あるタスクがまだありません。</div>
+          ) : (
+            <div style={{ display: "flex", gap: 12 }}>
+              <Stat label="実績÷見積の平均" value={`${Math.round(accuracy.avg * 100)}%`}
+                sub={accuracy.avg > 1.1 ? "見積が甘め" : accuracy.avg < 0.9 ? "見積が多め" : "ほぼ正確"} />
+              <Stat label="超過したタスク" value={`${accuracy.over}/${accuracy.count}件`}
+                sub={`${Math.round((accuracy.over / accuracy.count) * 100)}%が見積オーバー`} />
+            </div>
+          )}
+        </div>
+      </section>
+
+      {goalModal && (
+        <GoalModal goal={goalModal === "new" ? null : goalModal} modes={modes}
+          onClose={() => setGoalModal(null)}
+          onSave={(g) => {
+            setData((d) => ({
+              ...d,
+              goals: g.id ? d.goals.map((x) => (x.id === g.id ? g : x)) : [...d.goals, { ...g, id: uid() }],
+            }));
+            setGoalModal(null);
+          }}
+          onDelete={(id) => {
+            setData((d) => ({ ...d, goals: d.goals.filter((x) => x.id !== id) }));
+            setGoalModal(null);
+          }} />
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, sub }) {
+  return (
+    <div style={{ flex: 1 }}>
+      <div style={{ fontSize: 11, color: "#8595A6" }}>{label}</div>
+      <div style={{ ...mono, fontSize: 24, fontWeight: 700, marginTop: 2 }}>{value}</div>
+      <div style={{ fontSize: 11, color: "#5B6B7C", marginTop: 2 }}>{sub}</div>
+    </div>
+  );
+}
+
+// ===== 目標モーダル =====
+function GoalModal({ goal, modes, onClose, onSave, onDelete }) {
+  const [name, setName] = useState((goal && goal.name) || "");
+  const [gmode, setGmode] = useState((goal && goal.mode) || null);
+  const [keyword, setKeyword] = useState((goal && goal.keyword) || "");
+  const [targetMin, setTargetMin] = useState((goal && goal.targetMin) || 300);
+  const [period, setPeriod] = useState((goal && goal.period) || "week");
+  return (
+    <Modal title={goal ? "目標を編集" : "目標を追加"} onClose={onClose}>
+      <Field label="目標名">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 学習に週5時間" style={inputStyle} />
+      </Field>
+      <Field label="対象モード(未選択=すべて)">
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button onClick={() => setGmode(null)} style={chip(gmode === null)}>すべて</button>
+          {modes.map((m) => (
+            <button key={m.id} onClick={() => setGmode(m.id)}
+              style={{ ...chip(gmode === m.id), borderColor: gmode === m.id ? m.color : "#E1E6EC", background: "#fff", color: gmode === m.id ? m.color : "#5B6B7C", fontWeight: gmode === m.id ? 700 : 400 }}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Field label="タスク名キーワード(任意)">
+        <input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="例: 英語(名前に含むタスクだけ集計)" style={inputStyle} />
+      </Field>
+      <Field label="期間と目標時間">
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          {[["day", "毎日"], ["week", "毎週"], ["month", "毎月"]].map(([p, label]) => (
+            <button key={p} onClick={() => setPeriod(p)} style={chip(period === p)}>{label}</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="number" value={targetMin} onChange={(e) => setTargetMin(Number(e.target.value) || 0)} style={{ ...inputStyle, width: 100, textAlign: "center" }} />
+          <span style={{ fontSize: 13, color: "#5B6B7C" }}>分({fmtMin(targetMin)})</span>
+        </div>
+      </Field>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        {goal && (
+          <button onClick={() => onDelete(goal.id)} style={{ flex: 1, padding: 13, borderRadius: 10, border: "1px solid #FCA5A5", background: "#fff", color: "#DC2626", fontSize: 14, cursor: "pointer" }}>削除</button>
+        )}
+        <button disabled={!name.trim() || targetMin <= 0}
+          onClick={() => onSave({ id: goal && goal.id, name: name.trim(), mode: gmode, keyword: keyword.trim() || null, targetMin, period })}
+          style={{ flex: 2, padding: 13, borderRadius: 10, border: "none", background: name.trim() && targetMin > 0 ? "#17222E" : "#C6CEDA", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+          保存
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ===== 設定ビュー =====
+function SettingsView({ data, setData, onExportDate, onBackup, onImport }) {
+  const sections = data.sections;
+  const modes = data.modes;
+  const [newSec, setNewSec] = useState({ label: "", range: "" });
+  const [newMode, setNewMode] = useState({ label: "", color: COLOR_PALETTE[0] });
+  const [pickColor, setPickColor] = useState(null);
+  const [exportDate, setExportDate] = useState(todayKey());
+
+  const updSections = (fn) => setData((d) => ({ ...d, sections: fn(d.sections) }));
+  const updModes = (fn) => setData((d) => ({ ...d, modes: fn(d.modes) }));
+
+  const moveSec = (i, dir) =>
+    updSections((ss) => {
+      const j = i + dir;
+      if (j < 0 || j >= ss.length) return ss;
+      const arr = [...ss];
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      return arr;
+    });
+
+  const card = { background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(23,34,46,.06)" };
+  const h = { fontSize: 13, fontWeight: 700, padding: "0 6px 6px" };
+  const smallInput = { ...inputStyle, padding: "8px 10px", fontSize: 13 };
+
+  return (
+    <div style={{ padding: "16px 12px 32px" }}>
+      <section style={{ marginBottom: 24 }}>
+        <div style={h}>Markdownエクスポート</div>
+        <div style={{ ...card, padding: 12 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input type="date" value={exportDate} onChange={(e) => setExportDate(e.target.value)}
+              style={{ ...smallInput, flex: 1, ...mono }} />
+            <button onClick={() => exportDate && onExportDate(exportDate)}
+              style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#17222E", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              出力
+            </button>
+          </div>
+          <p style={{ fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 }}>
+            指定した日のログをDataview対応frontmatter付きで出力します。ログタブの各日付のMDボタンからも出せます。
+          </p>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 24 }}>
+        <div style={h}>バックアップ</div>
+        <div style={{ ...card, padding: 12 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onBackup}
+              style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: "#17222E", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              バックアップを出力
+            </button>
+            <button onClick={onImport}
+              style={{ flex: 1, padding: 12, borderRadius: 10, border: "1.5px solid #17222E", background: "#fff", color: "#17222E", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              取り込み
+            </button>
+          </div>
+          <p style={{ fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 }}>
+            データはこの端末のブラウザ内に保存されています。ブラウザのデータ消去で消えるため、定期的にバックアップをObsidianやDropboxに保存してください。
+          </p>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 24 }}>
+        <div style={h}>セクション</div>
+        <div style={card}>
+          {sections.map((s, i) => (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderTop: i > 0 ? "1px solid #EDF0F4" : "none" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <button onClick={() => moveSec(i, -1)} style={arrowBtn} aria-label="上へ">▲</button>
+                <button onClick={() => moveSec(i, 1)} style={arrowBtn} aria-label="下へ">▼</button>
+              </div>
+              <input value={s.label}
+                onChange={(e) => updSections((ss) => ss.map((x) => (x.id === s.id ? { ...x, label: e.target.value } : x)))}
+                style={{ ...smallInput, width: 72, flexShrink: 0 }} />
+              <input value={s.range} placeholder="時間帯"
+                onChange={(e) => updSections((ss) => ss.map((x) => (x.id === s.id ? { ...x, range: e.target.value } : x)))}
+                style={{ ...smallInput, flex: 1, ...mono }} />
+              <button disabled={sections.length <= 1}
+                onClick={() => updSections((ss) => ss.filter((x) => x.id !== s.id))}
+                style={{ border: "none", background: "none", color: sections.length <= 1 ? "#E1E6EC" : "#C6CEDA", fontSize: 13, cursor: "pointer", flexShrink: 0 }}>
+                削除
+              </button>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 6, padding: "10px", borderTop: "1px solid #EDF0F4", background: "#F7F9FB" }}>
+            <input value={newSec.label} placeholder="名前" onChange={(e) => setNewSec({ ...newSec, label: e.target.value })} style={{ ...smallInput, width: 90 }} />
+            <input value={newSec.range} placeholder="例 9:00–12:00" onChange={(e) => setNewSec({ ...newSec, range: e.target.value })} style={{ ...smallInput, flex: 1 }} />
+            <button disabled={!newSec.label.trim()}
+              onClick={() => { updSections((ss) => [...ss, { id: uid(), label: newSec.label.trim(), range: newSec.range.trim() }]); setNewSec({ label: "", range: "" }); }}
+              style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: newSec.label.trim() ? "#17222E" : "#C6CEDA", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              追加
+            </button>
+          </div>
+        </div>
+        <p style={{ fontSize: 11, color: "#8595A6", padding: "8px 6px 0", lineHeight: 1.7 }}>
+          セクションを削除しても、そのセクションにあったタスクは先頭のセクションに表示されます。
+        </p>
+      </section>
+
+      <section>
+        <div style={h}>モード</div>
+        <div style={card}>
+          {modes.map((m, i) => (
+            <div key={m.id} style={{ borderTop: i > 0 ? "1px solid #EDF0F4" : "none" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px" }}>
+                <button onClick={() => setPickColor(pickColor === m.id ? null : m.id)} aria-label="色を変更"
+                  style={{ width: 22, height: 22, borderRadius: 11, background: m.color, border: "2px solid #fff", boxShadow: "0 0 0 1px #E1E6EC", cursor: "pointer", flexShrink: 0 }} />
+                <input value={m.label}
+                  onChange={(e) => updModes((ms) => ms.map((x) => (x.id === m.id ? { ...x, label: e.target.value } : x)))}
+                  style={{ ...smallInput, flex: 1 }} />
+                <button disabled={modes.length <= 1}
+                  onClick={() => updModes((ms) => ms.filter((x) => x.id !== m.id))}
+                  style={{ border: "none", background: "none", color: modes.length <= 1 ? "#E1E6EC" : "#C6CEDA", fontSize: 13, cursor: "pointer", flexShrink: 0 }}>
+                  削除
+                </button>
+              </div>
+              {pickColor === m.id && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "0 10px 12px 40px" }}>
+                  {COLOR_PALETTE.map((c) => (
+                    <button key={c} onClick={() => { updModes((ms) => ms.map((x) => (x.id === m.id ? { ...x, color: c } : x))); setPickColor(null); }}
+                      aria-label={"色 " + c}
+                      style={{ width: 26, height: 26, borderRadius: 13, background: c, border: m.color === c ? "3px solid #17222E" : "2px solid #fff", boxShadow: "0 0 0 1px #E1E6EC", cursor: "pointer" }} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 6, padding: "10px", borderTop: "1px solid #EDF0F4", background: "#F7F9FB", alignItems: "center" }}>
+            <button onClick={() => { const idx = (COLOR_PALETTE.indexOf(newMode.color) + 1) % COLOR_PALETTE.length; setNewMode({ ...newMode, color: COLOR_PALETTE[idx] }); }}
+              aria-label="色を切り替え"
+              style={{ width: 22, height: 22, borderRadius: 11, background: newMode.color, border: "2px solid #fff", boxShadow: "0 0 0 1px #E1E6EC", cursor: "pointer", flexShrink: 0 }} />
+            <input value={newMode.label} placeholder="モード名" onChange={(e) => setNewMode({ ...newMode, label: e.target.value })} style={{ ...smallInput, flex: 1 }} />
+            <button disabled={!newMode.label.trim()}
+              onClick={() => { updModes((ms) => [...ms, { id: uid(), label: newMode.label.trim(), color: newMode.color }]); setNewMode({ label: "", color: COLOR_PALETTE[0] }); }}
+              style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: newMode.label.trim() ? "#17222E" : "#C6CEDA", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              追加
+            </button>
+          </div>
+        </div>
+        <p style={{ fontSize: 11, color: "#8595A6", padding: "8px 6px 0", lineHeight: 1.7 }}>
+          色の丸をタップするとパレットから色を選べます。
+        </p>
+      </section>
+    </div>
+  );
+}
+
+// ===== バックアップ出力モーダル =====
+function BackupModal({ data, onClose }) {
+  const json = useMemo(() => JSON.stringify({ ...data, _exportedAt: new Date().toISOString(), _app: "taskchute-mobile" }, null, 2), [data]);
+  const [copied, setCopied] = useState(false);
+  const taRef = useRef(null);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(json);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      if (taRef.current) { taRef.current.focus(); taRef.current.select(); }
+    }
+  };
+
+  const download = () => {
+    try {
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `taskchute-backup-${todayKey()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) { copy(); }
+  };
+
+  return (
+    <Modal title="バックアップを出力" onClose={onClose}>
+      <textarea ref={taRef} readOnly value={json} rows={10}
+        style={{ ...inputStyle, ...mono, fontSize: 11, resize: "vertical", lineHeight: 1.5 }} />
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <button onClick={copy}
+          style={{ flex: 1, padding: 13, borderRadius: 10, border: "none", background: copied ? "#0D9488" : "#17222E", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          {copied ? "コピーしました ✓" : "コピー"}
+        </button>
+        <button onClick={download}
+          style={{ flex: 1, padding: 13, borderRadius: 10, border: "1.5px solid #17222E", background: "#fff", color: "#17222E", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          ファイル保存
+        </button>
+      </div>
+      <p style={{ fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 }}>
+        このJSONをObsidianのvaultやDropboxに保存しておけば、「取り込み」からいつでも復元できます。
+      </p>
+    </Modal>
+  );
+}
+
+// ===== バックアップ取り込みモーダル =====
+function ImportModal({ onClose, onImport }) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  const [preview, setPreview] = useState(null);
+
+  const check = (v) => {
+    setText(v);
+    setError("");
+    setPreview(null);
+    if (!v.trim()) return;
+    try {
+      const d = JSON.parse(v);
+      if (typeof d !== "object" || d === null || (!d.days && !d.routines)) {
+        setError("このアプリのバックアップ形式ではないようです。");
+        return;
+      }
+      const dayCount = Object.keys(d.days || {}).length;
+      const taskCount = Object.values(d.days || {}).reduce((a, day) => a + ((day.tasks && day.tasks.length) || 0), 0);
+      setPreview({ d, dayCount, taskCount, routines: (d.routines || []).length, goals: (d.goals || []).length, exportedAt: d._exportedAt });
+    } catch (e) {
+      setError("JSONの形式が正しくありません。全文をコピーできているか確認してください。");
+    }
+  };
+
+  return (
+    <Modal title="バックアップを取り込み" onClose={onClose}>
+      <Field label="バックアップJSONを貼り付け">
+        <textarea value={text} onChange={(e) => check(e.target.value)} rows={8} placeholder='{"routines": [...], "days": {...}}'
+          style={{ ...inputStyle, ...mono, fontSize: 11, resize: "vertical", lineHeight: 1.5 }} />
+      </Field>
+      {error && <p style={{ fontSize: 12, color: "#DC2626", margin: "0 2px 10px" }}>{error}</p>}
+      {preview && (
+        <div style={{ background: "#F0FBFA", border: "1px solid #99E5DC", borderRadius: 10, padding: "10px 12px", fontSize: 12, lineHeight: 1.8, marginBottom: 10 }}>
+          記録日数 {preview.dayCount}日 ・ タスク {preview.taskCount}件 ・ ルーチン {preview.routines}件 ・ 目標 {preview.goals}件
+          {preview.exportedAt && <React.Fragment><br />出力日時: {preview.exportedAt.slice(0, 16).replace("T", " ")}</React.Fragment>}
+        </div>
+      )}
+      <button disabled={!preview}
+        onClick={() => preview && onImport(preview.d)}
+        style={{ width: "100%", padding: 14, borderRadius: 10, border: "none", background: preview ? "#DC2626" : "#C6CEDA", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+        取り込む(現在のデータをすべて上書き)
+      </button>
+      <p style={{ fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 }}>
+        取り込みは上書きです。心配な場合は先に現在のデータをバックアップ出力してください。
+      </p>
+    </Modal>
+  );
+}
+
+// ===== エクスポートモーダル =====
+function ExportModal({ title, md, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const taRef = useRef(null);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(md);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      if (taRef.current) { taRef.current.focus(); taRef.current.select(); }
+    }
+  };
+  return (
+    <Modal title={`${title} のMarkdown`} onClose={onClose}>
+      <textarea ref={taRef} readOnly value={md} rows={12}
+        style={{ ...inputStyle, ...mono, fontSize: 12, resize: "vertical", lineHeight: 1.6 }} />
+      <button onClick={copy}
+        style={{ width: "100%", padding: 13, borderRadius: 10, border: "none", background: copied ? "#0D9488" : "#17222E", color: "#fff", fontSize: 14, fontWeight: 700, marginTop: 10, cursor: "pointer" }}>
+        {copied ? "コピーしました ✓" : "クリップボードにコピー"}
+      </button>
+      <p style={{ fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 }}>
+        Obsidianのデイリーノート等に貼り付けてください。frontmatterのestimate_min / actual_minはDataviewで集計できます。
+      </p>
+    </Modal>
+  );
+}
+
+// ===== 追加モーダル =====
+function AddModal({ sections, modes, onClose, onAdd, defaultRoutine }) {
+  const [name, setName] = useState("");
+  const [estimate, setEstimate] = useState(15);
+  const [section, setSection] = useState(sections[0] && sections[0].id);
+  const [tmode, setTmode] = useState(modes[0] && modes[0].id);
+  const [asRoutine, setAsRoutine] = useState(!!defaultRoutine);
+  const [days, setDays] = useState([]);
+  return (
+    <Modal title="タスクを追加" onClose={onClose}>
+      <Field label="タスク名">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="例: メールチェック" style={inputStyle} />
+      </Field>
+      <Field label="見積時間(分)">
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {[5, 15, 30, 60, 90].map((m) => (
+            <button key={m} onClick={() => setEstimate(m)} style={chip(estimate === m)}>{m}</button>
+          ))}
+          <input type="number" value={estimate} onChange={(e) => setEstimate(Number(e.target.value) || 0)} style={{ ...inputStyle, width: 64, textAlign: "center" }} />
+        </div>
+      </Field>
+      <Field label="セクション">
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {sections.map((s) => (
+            <button key={s.id} onClick={() => setSection(s.id)} style={chip(section === s.id)}>{s.label}</button>
+          ))}
+        </div>
+      </Field>
+      <Field label="モード">
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {modes.map((m) => (
+            <button key={m.id} onClick={() => setTmode(m.id)} style={{ ...chip(tmode === m.id), borderColor: tmode === m.id ? m.color : "#E1E6EC", background: "#fff", color: tmode === m.id ? m.color : "#5B6B7C", fontWeight: tmode === m.id ? 700 : 400 }}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Field label="">
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+          <input type="checkbox" checked={asRoutine} onChange={(e) => setAsRoutine(e.target.checked)} style={{ width: 18, height: 18, appearance: "auto", WebkitAppearance: "checkbox" }} />
+          ルーチンとして登録(毎日自動で並ぶ)
+        </label>
+      </Field>
+      {asRoutine && (
+        <Field label="繰り返す曜日(未選択=毎日)">
+          <div style={{ display: "flex", gap: 4 }}>
+            {WEEKDAYS.map((w, i) => (
+              <button key={i} onClick={() => setDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i]))} style={{ ...chip(days.includes(i)), width: 36, padding: "8px 0" }}>
+                {w}
+              </button>
+            ))}
+          </div>
+        </Field>
+      )}
+      <button disabled={!name.trim()} onClick={() => onAdd({ name: name.trim(), estimate, section, mode: tmode, days, comment: "" }, asRoutine)}
+        style={{ width: "100%", padding: 14, borderRadius: 10, border: "none", background: name.trim() ? "#17222E" : "#C6CEDA", color: "#fff", fontSize: 15, fontWeight: 700, marginTop: 8, cursor: "pointer" }}>
+        追加する
+      </button>
+    </Modal>
+  );
+}
+
+// ===== 詳細モーダル =====
+function DetailModal({ task, now, onClose, onSave, onDelete }) {
+  const [name, setName] = useState(task.name);
+  const [estimate, setEstimate] = useState(task.estimate || 0);
+  const [comment, setComment] = useState(task.comment || "");
+  return (
+    <Modal title="タスク詳細" onClose={onClose}>
+      <Field label="タスク名">
+        <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+      </Field>
+      <Field label="見積時間(分)">
+        <input type="number" value={estimate} onChange={(e) => setEstimate(Number(e.target.value) || 0)} style={inputStyle} />
+      </Field>
+      <Field label="実績">
+        <div style={{ ...mono, fontSize: 14, color: "#5B6B7C" }}>
+          {fmtDur(elapsedSec(task, now))}{task.startClock && ` (${task.startClock}${task.endClock ? "→" + task.endClock : "〜"})`}
+        </div>
+      </Field>
+      <Field label="コメント">
+        <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} placeholder="振り返り・メモ" style={{ ...inputStyle, resize: "vertical" }} />
+      </Field>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button onClick={onDelete} style={{ flex: 1, padding: 13, borderRadius: 10, border: "1px solid #FCA5A5", background: "#fff", color: "#DC2626", fontSize: 14, cursor: "pointer" }}>削除</button>
+        <button onClick={() => onSave({ name: name.trim() || task.name, estimate, comment })} style={{ flex: 2, padding: 13, borderRadius: 10, border: "none", background: "#17222E", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>保存</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ===== 共通UI =====
+function Modal({ title, children, onClose }) {
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(23,34,46,.5)", zIndex: 50, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#F7F9FB", width: "100%", maxWidth: 480, borderRadius: "18px 18px 0 0", padding: "18px 18px calc(env(safe-area-inset-bottom, 0px) + 28px)", maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{title}</h2>
+          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 20, color: "#8595A6", cursor: "pointer" }} aria-label="閉じる">×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      {label && <div style={{ fontSize: 12, fontWeight: 600, color: "#5B6B7C", marginBottom: 6 }}>{label}</div>}
+      {children}
+    </div>
+  );
+}
+
+const inputStyle = { width: "100%", padding: "11px 12px", borderRadius: 10, border: "1px solid #E1E6EC", fontSize: 15, background: "#fff", boxSizing: "border-box", fontFamily: "inherit" };
+
+const chip = (active) => ({
+  padding: "8px 14px", borderRadius: 999, border: `1.5px solid ${active ? "#17222E" : "#E1E6EC"}`,
+  background: active ? "#17222E" : "#fff", color: active ? "#fff" : "#5B6B7C",
+  fontSize: 13, cursor: "pointer",
+});
+
+ReactDOM.createRoot(document.getElementById("root")).render(<TaskChuteMobile />);
+</script>
+</body>
+</html>
