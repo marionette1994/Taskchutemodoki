@@ -700,6 +700,18 @@ function TaskChuteMobile() {
     } : x));
   };
   const deleteTask = id => updateTasks(ts => ts.filter(t => t.id !== id));
+
+  // 今日は実施しない: ルーチン由来はskippedで残し(翌日は別リストなので普通に並ぶ)、手動タスクは削除
+  const skipTask = t => updateTasks(ts => t.routineId ? ts.map(x => x.id === t.id ? {
+    ...x,
+    skipped: true,
+    running: false,
+    startedAt: null
+  } : x) : ts.filter(x => x.id !== t.id));
+  const unskipTask = id => updateTasks(ts => ts.map(x => x.id === id ? {
+    ...x,
+    skipped: false
+  } : x));
   const moveTask = (id, dir) => updateTasks(ts => {
     const idx = ts.findIndex(t => t.id === id);
     const sameSection = ts.filter(t => t.section === ts[idx].section);
@@ -745,13 +757,13 @@ function TaskChuteMobile() {
     };
   });
   const remainingSec = tasks.reduce((acc, t) => {
-    if (t.done) return acc;
+    if (t.done || t.skipped) return acc;
     const est = (t.estimate || 0) * 60;
     return acc + Math.max(0, est - elapsedSec(t, now));
   }, 0);
   const endTime = new Date(now + remainingSec * 1000);
-  const totalEst = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
-  const doneEst = tasks.filter(t => t.done).reduce((a, t) => a + (t.estimate || 0), 0);
+  const totalEst = tasks.filter(t => !t.skipped).reduce((a, t) => a + (t.estimate || 0), 0);
+  const doneEst = tasks.filter(t => t.done && !t.skipped).reduce((a, t) => a + (t.estimate || 0), 0);
   const progress = totalEst > 0 ? doneEst / totalEst : 0;
   const runningTasks = tasks.filter(t => t.running);
   const runningTask = runningTasks[runningTasks.length - 1];
@@ -1008,7 +1020,9 @@ function TaskChuteMobile() {
     onStop: id => stopTask(id, false),
     onDone: toggleDone,
     onOpen: setEditTask,
-    onMove: moveTask
+    onMove: moveTask,
+    onSkip: skipTask,
+    onUnskip: unskipTask
   }), view === "routines" && /*#__PURE__*/React.createElement(RoutineView, {
     routines: data.routines,
     sections: sections,
@@ -1207,7 +1221,9 @@ function TodayView({
   onStop,
   onDone,
   onOpen,
-  onMove
+  onMove,
+  onSkip,
+  onUnskip
 }) {
   if (tasks.length === 0) return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1219,7 +1235,9 @@ function TodayView({
     }
   }, "今日のタスクはまだありません。", /*#__PURE__*/React.createElement("br", null), "＋ボタンから追加するか、ルーチンを登録すると毎日自動で並びます。");
   const known = new Set(sections.map(s => s.id));
-  const visibleTasks = hideDone ? tasks.filter(t => !t.done) : tasks;
+  const skippedTasks = tasks.filter(t => t.skipped);
+  const activeTasks = tasks.filter(t => !t.skipped);
+  const visibleTasks = hideDone ? activeTasks.filter(t => !t.done) : activeTasks;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "8px 12px"
@@ -1379,9 +1397,92 @@ function TodayView({
           color: t.running ? "#fff" : "#17222E",
           flexShrink: 0
         }
-      }, t.running ? "停止" : "開始"));
+      }, t.running ? "停止" : "開始"), !t.done && /*#__PURE__*/React.createElement("button", {
+        onClick: () => onSkip(t),
+        "aria-label": "今日はしない",
+        style: {
+          border: "none",
+          background: "none",
+          color: "#C6CEDA",
+          fontSize: 18,
+          lineHeight: 1,
+          padding: "4px 2px 4px 4px",
+          cursor: "pointer",
+          flexShrink: 0
+        }
+      }, "×"));
     })));
-  }));
+  }), skippedTasks.length > 0 && /*#__PURE__*/React.createElement("section", {
+    style: {
+      marginTop: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#8595A6",
+      padding: "0 6px 6px"
+    }
+  }, "今日はしない(", skippedTasks.length, ")"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#FFFFFF",
+      borderRadius: 12,
+      overflow: "hidden",
+      boxShadow: "0 1px 2px rgba(23,34,46,.06)"
+    }
+  }, skippedTasks.map((t, i) => /*#__PURE__*/React.createElement("div", {
+    key: t.id,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      padding: "10px 12px",
+      borderTop: i > 0 ? "1px solid #EDF0F4" : "none",
+      opacity: 0.6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "inline-block",
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      background: modeOf(t.mode).color,
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 14,
+      textDecoration: "line-through",
+      color: "#8595A6",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    }
+  }, t.name), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onUnskip(t.id),
+    style: {
+      ...mono,
+      padding: "6px 12px",
+      borderRadius: 8,
+      border: "1px solid #C6CEDA",
+      background: "#fff",
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: "pointer",
+      color: "#17222E",
+      flexShrink: 0
+    }
+  }, "戻す")))), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      padding: "8px 6px 0",
+      margin: 0,
+      lineHeight: 1.6
+    }
+  }, "ルーチンは明日また並びます。手動追加したタスクは×で完全に削除されます。")));
 }
 const arrowBtn = {
   border: "none",
@@ -1484,7 +1585,14 @@ function LogView({
 }) {
   const keys = Object.keys(days).sort().reverse();
   const rows = keys.map(k => {
-    const done = (days[k] && days[k].tasks || []).filter(t => t.done);
+    const done = (days[k] && days[k].tasks || []).filter(t => t.done).slice().sort((a, b) => {
+      // 開始時刻の昇順。時刻なしは末尾へ
+      const ka = a.startClock || "99:99";
+      const kb = b.startClock || "99:99";
+      if (ka !== kb) return ka < kb ? -1 : 1;
+      // 同時刻なら終了時刻で
+      return (a.endClock || "99:99") < (b.endClock || "99:99") ? -1 : 1;
+    });
     const est = done.reduce((a, t) => a + (t.estimate || 0), 0);
     const act = done.reduce((a, t) => a + (t.actualSec || 0), 0);
     return {
@@ -1543,7 +1651,7 @@ function LogView({
       padding: "0 6px",
       margin: 0
     }
-  }, "記録をタップで修正できます。"), addBtn), rows.map(r => /*#__PURE__*/React.createElement("section", {
+  }, "開始時刻順・タップで修正"), addBtn), rows.map(r => /*#__PURE__*/React.createElement("section", {
     key: r.key,
     style: {
       marginBottom: 20
