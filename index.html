@@ -329,16 +329,105 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 } = React;
 
 // ===== ストレージ(localStorage) =====
+// ===== ストレージ: IndexedDB(容量上限 実質数百MB) + localStorageから自動移行 =====
+const IDB_NAME = "taskchute-db";
+const IDB_STORE = "kv";
+let idbFailed = false; // IndexedDB不可の環境ではlocalStorageへフォールバック
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      req.result.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => reject(new Error("blocked"));
+  });
+}
+
+async function idbGet(key) {
+  const db = await openDB();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readonly");
+      const rq = tx.objectStore(IDB_STORE).get(key);
+      rq.onsuccess = () => resolve(rq.result);
+      rq.onerror = () => reject(rq.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function idbSet(key, value) {
+  const db = await openDB();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error("abort"));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+const NOT_FOUND = "not found";
+
 const storage = {
   async get(key) {
-    const v = localStorage.getItem(key);
-    if (v === null) throw new Error("not found");
+    if (typeof indexedDB !== "undefined" && !idbFailed) {
+      try {
+        let v = await idbGet(key);
+        if (v == null) {
+          // 初回: localStorageの既存データをIndexedDBへ移行
+          let legacy = null;
+          try {
+            legacy = localStorage.getItem(key);
+          } catch (e) {}
+          if (legacy !== null) {
+            await idbSet(key, legacy);
+            const check = await idbGet(key);
+            if (check === legacy) {
+              try {
+                localStorage.removeItem(key); // 移行成功後に旧データを解放
+              } catch (e) {}
+            }
+            v = legacy;
+          }
+        }
+        if (v == null) throw new Error(NOT_FOUND);
+        return {
+          key,
+          value: v
+        };
+      } catch (e) {
+        if (e && e.message === NOT_FOUND) throw e;
+        idbFailed = true; // IDB異常 → 以降はlocalStorage
+      }
+    }
+    const v2 = localStorage.getItem(key);
+    if (v2 === null) throw new Error(NOT_FOUND);
     return {
       key,
-      value: v
+      value: v2
     };
   },
   async set(key, value) {
+    if (typeof indexedDB !== "undefined" && !idbFailed) {
+      try {
+        await idbSet(key, value);
+        return {
+          key,
+          value
+        };
+      } catch (e) {
+        idbFailed = true;
+      }
+    }
     localStorage.setItem(key, value);
     return {
       key,
@@ -631,15 +720,17 @@ function TaskChuteMobile() {
       try {
         const json = JSON.stringify(data);
         await storage.set(STORAGE_KEY, json);
-        // 4MB超で警告(localStorageの上限は概ね5MB)
-        if (json.length > 4 * 1024 * 1024) {
-          setSaveError("保存データが大きくなっています(" + Math.round(json.length / 1048576 * 10) / 10 + "MB)。設定タブからバックアップを取り、古い記録の整理を検討してください。");
+        // IndexedDB移行後の目安として50MB超で警告
+        if (json.length > 50 * 1024 * 1024) {
+          setSaveError("保存データが" + Math.round(json.length / 1048576) + "MBに達しています。設定タブからバックアップを取り、古い記録の整理を検討してください。");
+        } else if (idbFailed && json.length > 4 * 1024 * 1024) {
+          setSaveError("この環境ではIndexedDBが使えず簡易保存(上限約5MB)で動作中です。データが4MBを超えたため、バックアップの取得をおすすめします。");
         } else if (saveError) {
           setSaveError("");
         }
       } catch (e) {
         console.error("保存に失敗しました", e);
-        setSaveError("データの保存に失敗しました。設定タブからバックアップを出力してください(端末の空き容量やブラウザ設定をご確認ください)。");
+        setSaveError("データの保存に失敗しました。今すぐ設定タブからバックアップを出力してください(端末の空き容量やブラウザのサイト設定をご確認ください)。");
       }
     }, 600);
     return () => clearTimeout(saveTimer.current);
@@ -647,6 +738,10 @@ function TaskChuteMobile() {
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
+    // ブラウザの容量逼迫時にデータが自動削除されないよう永続化を要求
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().catch(() => {});
     }
   }, []);
   const anyRunning = !!(data && data.days[dateKey] && data.days[dateKey].tasks.some(t => t.running));
@@ -3175,7 +3270,7 @@ function SettingsView({
       margin: "10px 2px 0",
       lineHeight: 1.7
     }
-  }, "データはこの端末のブラウザ内に保存されています。ブラウザのデータ消去で消えるため、定期的にバックアップをObsidianやDropboxに保存してください。"))), /*#__PURE__*/React.createElement("section", {
+  }, "データはこの端末のブラウザ内(IndexedDB)に保存され、容量上限は実質数百MBです。ただしブラウザのデータ消去では消えるため、定期的なバックアップは引き続きおすすめします。"))), /*#__PURE__*/React.createElement("section", {
     style: {
       marginBottom: 24
     }
