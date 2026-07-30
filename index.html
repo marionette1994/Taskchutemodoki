@@ -456,7 +456,7 @@ const mono = {
 };
 function periodKeys(period, startHour) {
   const now = logicalDate(startHour);
-  if (period === "day") return [todayKey()];
+  if (period === "day") return [logicalKey(startHour)];
   const keys = [];
   if (period === "week") {
     const d = new Date(now);
@@ -526,6 +526,7 @@ function TaskChuteMobile() {
   const [pastModal, setPastModal] = useState(false); // 過去記録の新規追加
   const [backupModal, setBackupModal] = useState(null);
   const [loadError, setLoadError] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const saveTimer = useRef(null);
   const loaded = useRef(false);
   const prefs = data && data.prefs || {
@@ -565,17 +566,32 @@ function TaskChuteMobile() {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        await storage.set(STORAGE_KEY, JSON.stringify(data));
+        const json = JSON.stringify(data);
+        await storage.set(STORAGE_KEY, json);
+        // 4MB超で警告(localStorageの上限は概ね5MB)
+        if (json.length > 4 * 1024 * 1024) {
+          setSaveError("保存データが大きくなっています(" + Math.round(json.length / 1048576 * 10) / 10 + "MB)。設定タブからバックアップを取り、古い記録の整理を検討してください。");
+        } else if (saveError) {
+          setSaveError("");
+        }
       } catch (e) {
         console.error("保存に失敗しました", e);
+        setSaveError("データの保存に失敗しました。設定タブからバックアップを出力してください(端末の空き容量やブラウザ設定をご確認ください)。");
       }
     }, 600);
     return () => clearTimeout(saveTimer.current);
   }, [data]);
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
   }, []);
+  const anyRunning = !!(data && data.days[dateKey] && data.days[dateKey].tasks.some(t => t.running));
+  useEffect(() => {
+    // 実行中タスクがある間は毎秒、それ以外は15秒間隔(無駄な再描画を抑制)
+    const id = setInterval(() => setNow(Date.now()), anyRunning ? 1000 : 15000);
+    return () => clearInterval(id);
+  }, [anyRunning]);
 
   // 日付が変わったらルーチンを再展開(アプリを開きっぱなしでも対応)
   const lastDay = useRef(dateKey);
@@ -588,8 +604,12 @@ function TaskChuteMobile() {
   function expandRoutines(d) {
     const sh = d.prefs && d.prefs.dayStartHour || 0;
     const key = logicalKey(sh);
-    const day = d.days[key] || {
+    const day0 = d.days[key] || {
       tasks: []
+    };
+    const day = {
+      ...day0,
+      tasks: [...day0.tasks]
     };
     const dow = logicalDate(sh).getDay();
     const existing = new Set(day.tasks.map(t => t.routineId).filter(Boolean));
@@ -770,13 +790,21 @@ function TaskChuteMobile() {
 
   // 先送り候補: 過去日の未完了タスク
   const carryList = [];
+  // 直近3日分のみ対象(古すぎる未完了が一括流入するのを防ぐ)
+  const carryFrom = (() => {
+    const d0 = logicalDate(dayStartHour, now);
+    d0.setDate(d0.getDate() - 3);
+    return dateToKey(d0);
+  })();
   if (data) {
     for (const k of Object.keys(data.days)) {
-      if (k >= dateKey) continue;
+      if (k >= dateKey || k < carryFrom) continue;
       for (const t of data.days[k] && data.days[k].tasks || []) {
-        if (!t.done && !t.dismissed) carryList.push({
+        if (!t.done && !t.dismissed && !t.skipped) carryList.push({
           day: k,
-          id: t.id
+          id: t.id,
+          name: t.name,
+          estimate: t.estimate || 0
         });
       }
     }
@@ -792,16 +820,17 @@ function TaskChuteMobile() {
     };
     today.tasks = [...today.tasks];
     for (const k of Object.keys(days)) {
-      if (k >= dateKey) continue;
+      if (k >= dateKey || k < carryFrom) continue;
       const day = days[k];
       if (!day || !day.tasks) continue;
-      const move = day.tasks.filter(t => !t.done && !t.dismissed);
+      const move = day.tasks.filter(t => !t.done && !t.dismissed && !t.skipped);
       if (move.length === 0) continue;
       days[k] = {
         ...day,
-        tasks: day.tasks.filter(t => t.done || t.dismissed)
+        tasks: day.tasks.filter(t => t.done || t.dismissed || t.skipped)
       };
       for (const t of move) today.tasks.push({
+        skipped: false,
         ...t,
         running: false,
         startedAt: null,
@@ -819,12 +848,12 @@ function TaskChuteMobile() {
       ...d.days
     };
     for (const k of Object.keys(days)) {
-      if (k >= dateKey) continue;
+      if (k >= dateKey || k < carryFrom) continue;
       const day = days[k];
-      if (!day || !day.tasks || !day.tasks.some(t => !t.done && !t.dismissed)) continue;
+      if (!day || !day.tasks || !day.tasks.some(t => !t.done && !t.dismissed && !t.skipped)) continue;
       days[k] = {
         ...day,
-        tasks: day.tasks.map(t => !t.done && !t.dismissed ? {
+        tasks: day.tasks.map(t => !t.done && !t.dismissed && !t.skipped ? {
           ...t,
           dismissed: true
         } : t)
@@ -867,7 +896,35 @@ function TaskChuteMobile() {
   }, "読み込み中…"));
   return /*#__PURE__*/React.createElement("div", {
     style: S.app
-  }, /*#__PURE__*/React.createElement("header", {
+  }, saveError && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#FEF2F2",
+      borderBottom: "1px solid #FCA5A5",
+      color: "#B91C1C",
+      fontSize: 12,
+      padding: "10px 14px",
+      lineHeight: 1.6,
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1
+    }
+  }, "⚠ ", saveError), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setSaveError(""),
+    "aria-label": "閉じる",
+    style: {
+      border: "none",
+      background: "none",
+      color: "#B91C1C",
+      fontSize: 16,
+      lineHeight: 1,
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }, "×")), /*#__PURE__*/React.createElement("header", {
     style: {
       background: "#17222E",
       color: "#F2F4F7",
@@ -973,7 +1030,33 @@ function TaskChuteMobile() {
       color: "#9A3412",
       marginBottom: 8
     }
-  }, "前日までの未完了タスクが", carryList.length, "件あります"), /*#__PURE__*/React.createElement("div", {
+  }, "直近3日の未完了タスクが", carryList.length, "件あります"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 10
+    }
+  }, carryList.slice(0, 6).map(c => /*#__PURE__*/React.createElement("div", {
+    key: c.day + c.id,
+    style: {
+      fontSize: 12,
+      color: "#7C2D12",
+      padding: "2px 0",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    }
+  }, "・", c.name, c.estimate ? "(" + fmtMin(c.estimate) + ")" : "", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#C2A18F",
+      marginLeft: 6,
+      fontSize: 11
+    }
+  }, c.day.slice(5)))), carryList.length > 6 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#9A3412",
+      paddingTop: 2
+    }
+  }, "ほか", carryList.length - 6, "件")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8
@@ -1585,7 +1668,7 @@ function LogView({
 }) {
   const keys = Object.keys(days).sort().reverse();
   const rows = keys.map(k => {
-    const done = (days[k] && days[k].tasks || []).filter(t => t.done).slice().sort((a, b) => {
+    const done = (days[k] && days[k].tasks || []).filter(t => t.done || t.actualSec > 0).slice().sort((a, b) => {
       // 開始時刻の昇順。時刻なしは末尾へ
       const ka = a.startClock || "99:99";
       const kb = b.startClock || "99:99";
