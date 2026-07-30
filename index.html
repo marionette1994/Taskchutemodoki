@@ -487,30 +487,93 @@ function lastNDaysKeys(n, startHour) {
 }
 
 // ===== Markdown生成(Obsidian/Dataview対応) =====
-function buildMarkdown(dateKey, tasks, sections, modes) {
-  const done = tasks.filter(t => t.done);
-  const estMin = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
-  const actMin = Math.round(tasks.reduce((a, t) => a + (t.actualSec || 0), 0) / 60);
-  const modeOf = id => modes.find(m => m.id === id);
-  let md = `---\ndate: ${dateKey}\ntype: taskchute-log\ntasks_total: ${tasks.length}\ntasks_done: ${done.length}\nestimate_min: ${estMin}\nactual_min: ${actMin}\n---\n\n# ${dateKey} タスクログ\n`;
-  if (tasks.length === 0) {
-    md += "\nこの日のタスク記録はありません。\n";
+// タスク行(Dataviewインラインフィールド形式)。skippedは除外して呼ぶこと
+function taskLine(t, modes) {
+  const mode = modes.find(m => m.id === t.mode);
+  let line = "- [" + (t.done ? "x" : " ") + "] " + t.name;
+  if (mode) line += " #" + mode.label;
+  if (t.startClock) line += " [start:: " + t.startClock + "]";
+  if (t.endClock) line += " [end:: " + t.endClock + "]";
+  line += " [est:: " + (t.estimate || 0) + "]";
+  line += " [act:: " + Math.round((t.actualSec || 0) / 60) + "]";
+  if (t.carried) line += " [carried:: " + t.carried + "]";
+  line += "\n";
+  if (t.comment) line += "    - 💬 " + t.comment + "\n";
+  return line;
+}
+
+// 開始時刻順ソート(時刻なしは末尾)
+function sortByStart(tasks) {
+  return tasks.slice().sort((a, b) => {
+    const ka = a.startClock || "99:99";
+    const kb = b.startClock || "99:99";
+    if (ka !== kb) return ka < kb ? -1 : 1;
+    return (a.endClock || "99:99") < (b.endClock || "99:99") ? -1 : 1;
+  });
+}
+
+// 1日分の集計(skipped除外)
+function dayStats(tasks, modes) {
+  const active = tasks.filter(t => !t.skipped);
+  const done = active.filter(t => t.done);
+  const skipped = tasks.length - active.length;
+  const estMin = active.reduce((a, t) => a + (t.estimate || 0), 0);
+  const actMin = Math.round(active.reduce((a, t) => a + (t.actualSec || 0), 0) / 60);
+  const byMode = {};
+  for (const t of active) {
+    const mode = modes.find(m => m.id === t.mode);
+    const label = mode ? mode.label : "その他";
+    byMode[label] = (byMode[label] || 0) + Math.round((t.actualSec || 0) / 60);
+  }
+  return { active, done, skipped, estMin, actMin, byMode };
+}
+
+// style: "file"(独立ファイル用frontmatter付き) | "daily"(DailyNote貼り付け用)
+function buildMarkdown(dateKey, tasks, sections, modes, style) {
+  const s = dayStats(tasks, modes);
+  const lines = sortByStart(s.active).map(t => taskLine(t, modes)).join("");
+  const summary = "- [done_count:: " + s.done.length + "] [est_total:: " + s.estMin + "] [act_total:: " + s.actMin + "] [skipped_count:: " + s.skipped + "]\n";
+  if (style === "daily") {
+    let md = "## タスクログ " + dateKey + "\n\n" + summary;
+    md += s.active.length === 0 ? "\nこの日のタスク記録はありません。\n" : lines;
     return md;
   }
-  const known = new Set(sections.map(s => s.id));
-  for (let i = 0; i < sections.length; i++) {
-    const sec = sections[i];
-    const list = tasks.filter(t => t.section === sec.id || i === 0 && !known.has(t.section));
-    if (list.length === 0) continue;
-    md += `\n## ${sec.label}(${sec.range})\n\n`;
-    for (const t of list) {
-      const mode = modeOf(t.mode);
-      const time = t.startClock ? ` ${t.startClock}→${t.endClock || ""}` : "";
-      const act = t.actualSec ? `/実績${Math.round(t.actualSec / 60)}分` : "";
-      md += `- [${t.done ? "x" : " "}] ${t.name}${mode ? ` #${mode.label}` : ""}${time} (見積${t.estimate || 0}分${act})\n`;
-      if (t.comment) md += `    - 💬 ${t.comment}\n`;
-    }
+  // file: frontmatter付き独立ファイル
+  let by = "";
+  for (const k of Object.keys(s.byMode)) by += "  " + k + ": " + s.byMode[k] + "\n";
+  let md = "---\ndate: " + dateKey + "\ntype: taskchute-log\ntasks_total: " + s.active.length +
+    "\ntasks_done: " + s.done.length + "\ntasks_skipped: " + s.skipped +
+    "\nestimate_min: " + s.estMin + "\nactual_min: " + s.actMin +
+    (by ? "\nby_mode:\n" + by.replace(/\n$/, "") : "") + "\n---\n\n# " + dateKey + " タスクログ\n\n" + summary;
+  md += s.active.length === 0 ? "\nこの日のタスク記録はありません。\n" : "\n" + lines;
+  return md;
+}
+
+// 期間一括出力: 先頭に期間サマリのfrontmatter、日ごとに見出し+箇条書き
+function buildRangeMarkdown(keys, days, sections, modes, style) {
+  let estT = 0, actT = 0, doneT = 0, skipT = 0;
+  const byModeT = {};
+  const bodies = [];
+  for (const k of keys) {
+    const tasks = days[k] && days[k].tasks || [];
+    const s = dayStats(tasks, modes);
+    estT += s.estMin; actT += s.actMin; doneT += s.done.length; skipT += s.skipped;
+    for (const mk of Object.keys(s.byMode)) byModeT[mk] = (byModeT[mk] || 0) + s.byMode[mk];
+    let body = "## " + k + "\n\n- [done_count:: " + s.done.length + "] [est_total:: " + s.estMin + "] [act_total:: " + s.actMin + "] [skipped_count:: " + s.skipped + "]\n";
+    body += sortByStart(s.active).map(t => taskLine(t, modes)).join("");
+    bodies.push(body);
   }
+  const from = keys[0], to = keys[keys.length - 1];
+  let md = "";
+  if (style !== "daily") {
+    let by = "";
+    for (const k of Object.keys(byModeT)) by += "  " + k + ": " + byModeT[k] + "\n";
+    md += "---\ntype: taskchute-log-range\nfrom: " + from + "\nto: " + to + "\ndays: " + keys.length +
+      "\ntasks_done: " + doneT + "\ntasks_skipped: " + skipT +
+      "\nestimate_min: " + estT + "\nactual_min: " + actT +
+      (by ? "\nby_mode:\n" + by.replace(/\n$/, "") : "") + "\n---\n\n";
+  }
+  md += "# タスクログ " + from + " 〜 " + to + "\n\n" + bodies.join("\n");
   return md;
 }
 
@@ -1124,7 +1187,10 @@ function TaskChuteMobile() {
     }),
     onExport: key => setExportMd({
       title: key,
-      md: buildMarkdown(key, data.days[key] && data.days[key].tasks || [], sections, modes)
+      mdFile: buildMarkdown(key, data.days[key] && data.days[key].tasks || [], sections, modes, "file"),
+      mdDaily: buildMarkdown(key, data.days[key] && data.days[key].tasks || [], sections, modes, "daily"),
+      fileName: "taskchute-" + key + ".md",
+      markExport: false
     })
   }), view === "analysis" && /*#__PURE__*/React.createElement(AnalysisView, {
     data: data,
@@ -1137,8 +1203,26 @@ function TaskChuteMobile() {
     setData: setData,
     onExportDate: key => setExportMd({
       title: key,
-      md: buildMarkdown(key, data.days[key] && data.days[key].tasks || [], sections, modes)
+      mdFile: buildMarkdown(key, data.days[key] && data.days[key].tasks || [], sections, modes, "file"),
+      mdDaily: buildMarkdown(key, data.days[key] && data.days[key].tasks || [], sections, modes, "daily"),
+      fileName: "taskchute-" + key + ".md",
+      markExport: false
     }),
+    onExportBulk: () => {
+      const last = data.prefs && data.prefs.lastExportKey || null;
+      const keys = Object.keys(data.days).filter(k => k <= dateKey && (!last || k > last) && (data.days[k].tasks || []).some(t => !t.skipped)).sort();
+      if (keys.length === 0) {
+        setSaveError("前回出力(" + (last || "未実施") + ")以降に出力対象の記録がありません。");
+        return;
+      }
+      setExportMd({
+        title: keys[0] + " 〜 " + keys[keys.length - 1] + "(" + keys.length + "日分)",
+        mdFile: buildRangeMarkdown(keys, data.days, sections, modes, "file"),
+        mdDaily: buildRangeMarkdown(keys, data.days, sections, modes, "daily"),
+        fileName: "taskchute-" + keys[0] + "_" + keys[keys.length - 1] + ".md",
+        markExport: true
+      });
+    },
     onBackup: () => setBackupModal("export"),
     onImport: () => setBackupModal("import")
   })), (view === "today" || view === "routines") && /*#__PURE__*/React.createElement("button", {
@@ -1233,7 +1317,16 @@ function TaskChuteMobile() {
     }
   }), exportMd && /*#__PURE__*/React.createElement(ExportModal, {
     title: exportMd.title,
-    md: exportMd.md,
+    mdFile: exportMd.mdFile,
+    mdDaily: exportMd.mdDaily,
+    fileName: exportMd.fileName,
+    onExported: exportMd.markExport ? () => setData(d => ({
+      ...d,
+      prefs: {
+        ...(d.prefs || {}),
+        lastExportKey: dateKey
+      }
+    })) : null,
     onClose: () => setExportMd(null)
   }), pastModal && /*#__PURE__*/React.createElement(PastRecordModal, {
     sections: sections,
@@ -2831,6 +2924,7 @@ function SettingsView({
   data,
   setData,
   onExportDate,
+  onExportBulk,
   onBackup,
   onImport
 }) {
@@ -2926,7 +3020,28 @@ function SettingsView({
       margin: "10px 2px 0",
       lineHeight: 1.7
     }
-  }, "指定した日のログをDataview対応frontmatter付きで出力します。ログタブの各日付のMDボタンからも出せます。"))), /*#__PURE__*/React.createElement("section", {
+  }, "指定した日のログを出力します。ログタブの各日付のMDボタンからも出せます。"), /*#__PURE__*/React.createElement("button", {
+    onClick: onExportBulk,
+    style: {
+      width: "100%",
+      marginTop: 10,
+      padding: 12,
+      borderRadius: 10,
+      border: "none",
+      background: "#0D9488",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "前回出力以降をまとめて出力", data.prefs && data.prefs.lastExportKey ? "(" + data.prefs.lastExportKey + " 以降)" : "(全期間)"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#8595A6",
+      margin: "8px 2px 0",
+      lineHeight: 1.7
+    }
+  }, "コピー・保存・Obsidian追記のいずれかを実行すると出力済みとして記録され、次回はその翌日以降だけが対象になります。取りこぼしなく差分だけ集約できます。"))), /*#__PURE__*/React.createElement("section", {
     style: {
       marginBottom: 24
     }
@@ -3550,60 +3665,83 @@ function ImportModal({
 // ===== エクスポートモーダル =====
 function ExportModal({
   title,
-  md,
-  onClose
+  mdFile,
+  mdDaily,
+  fileName,
+  onClose,
+  onExported
 }) {
+  const [style, setStyle] = useState("file"); // file | daily
   const [copied, setCopied] = useState(false);
   const taRef = useRef(null);
+  const md = style === "daily" ? mdDaily : mdFile;
+  const mark = () => { if (onExported) onExported(); };
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(md);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (e) {
+      // クリップボード不可の環境では全選択で手動コピーを促す
       if (taRef.current) {
         taRef.current.focus();
         taRef.current.select();
       }
     }
+    mark();
+  };
+  const saveFile = () => {
+    try {
+      const blob = new Blob([md], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName || "taskchute.md";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      mark();
+    } catch (e) { copy(); }
+  };
+  const uriTooLong = encodeURIComponent(mdDaily || "").length > 7000;
+  const openObsidian = () => {
+    // Advanced URIプラグイン経由でDailyNoteに追記
+    window.location.href = "obsidian://advanced-uri?daily=true&mode=append&data=" + encodeURIComponent(mdDaily);
+    mark();
   };
   return /*#__PURE__*/React.createElement(Modal, {
-    title: `${title} のMarkdown`,
+    title: title + " のMarkdown",
     onClose: onClose
-  }, /*#__PURE__*/React.createElement("textarea", {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", gap: 6, marginBottom: 10 }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setStyle("file"),
+    style: chip(style === "file")
+  }, "独立ファイル用"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setStyle("daily"),
+    style: chip(style === "daily")
+  }, "デイリーノート用")), /*#__PURE__*/React.createElement("textarea", {
     ref: taRef,
     readOnly: true,
     value: md,
-    rows: 12,
-    style: {
-      ...inputStyle,
-      ...mono,
-      fontSize: 12,
-      resize: "vertical",
-      lineHeight: 1.6
-    }
-  }), /*#__PURE__*/React.createElement("button", {
+    rows: 11,
+    style: { ...inputStyle, ...mono, fontSize: 12, resize: "vertical", lineHeight: 1.6 }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", gap: 8, marginTop: 10 }
+  }, /*#__PURE__*/React.createElement("button", {
     onClick: copy,
-    style: {
-      width: "100%",
-      padding: 13,
-      borderRadius: 10,
-      border: "none",
-      background: copied ? "#0D9488" : "#17222E",
-      color: "#fff",
-      fontSize: 14,
-      fontWeight: 700,
-      marginTop: 10,
-      cursor: "pointer"
-    }
-  }, copied ? "コピーしました ✓" : "クリップボードにコピー"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      fontSize: 11,
-      color: "#8595A6",
-      margin: "10px 2px 0",
-      lineHeight: 1.7
-    }
-  }, "Obsidianのデイリーノート等に貼り付けてください。frontmatterのestimate_min / actual_minはDataviewで集計できます。"));
+    style: { flex: 1, padding: 12, borderRadius: 10, border: "none", background: copied ? "#0D9488" : "#17222E", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }
+  }, copied ? "コピー済 ✓" : "コピー"), /*#__PURE__*/React.createElement("button", {
+    onClick: saveFile,
+    style: { flex: 1, padding: 12, borderRadius: 10, border: "1.5px solid #17222E", background: "#fff", color: "#17222E", fontSize: 13, fontWeight: 700, cursor: "pointer" }
+  }, ".md保存")), /*#__PURE__*/React.createElement("button", {
+    onClick: openObsidian,
+    disabled: uriTooLong,
+    style: { width: "100%", marginTop: 8, padding: 12, borderRadius: 10, border: "1.5px solid " + (uriTooLong ? "#E1E6EC" : "#7C3AED"), background: "#fff", color: uriTooLong ? "#C6CEDA" : "#7C3AED", fontSize: 13, fontWeight: 700, cursor: uriTooLong ? "default" : "pointer" }
+  }, uriTooLong ? "Obsidianに追記(データが大きすぎます・.md保存を使用)" : "Obsidianのデイリーノートに追記"), /*#__PURE__*/React.createElement("p", {
+    style: { fontSize: 11, color: "#8595A6", margin: "10px 2px 0", lineHeight: 1.7 }
+  }, "「独立ファイル用」はfrontmatter付き(taskchute/", title.slice(0, 10), ".md などに)。「デイリーノート用」は見出し+箇条書きのみ。Obsidian追記はAdvanced URIプラグインが必要です。数値は [est:: ] [act:: ] 形式でDataview集計できます。"));
 }
 
 // ===== 追加モーダル =====
